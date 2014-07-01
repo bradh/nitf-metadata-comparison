@@ -71,18 +71,22 @@ public class FileComparison
             out.write("Driver: NITF/National Imagery Transmission Format\n");
             out.write("Files: " + filename + "\n");
             out.write(String.format("Size is %d, %d\n", segment1.getNumberOfColumns(), segment1.getNumberOfRows()));
-            out.write("Coordinate System is:\n");
-            out.write("GEOGCS[\"WGS 84\",\n");
-            out.write("    DATUM[\"WGS_1984\",\n");
-            out.write("        SPHEROID[\"WGS 84\",6378137,298.257223563,\n");
-            out.write("            AUTHORITY[\"EPSG\",\"7030\"]],\n");
-            out.write("        TOWGS84[0,0,0,0,0,0,0],\n");
-            out.write("        AUTHORITY[\"EPSG\",\"6326\"]],\n");
-            out.write("    PRIMEM[\"Greenwich\",0,\n");
-            out.write("        AUTHORITY[\"EPSG\",\"8901\"]],\n");
-            out.write("    UNIT[\"degree\",0.0174532925199433,\n");
-            out.write("        AUTHORITY[\"EPSG\",\"9108\"]],\n");
-            out.write("    AUTHORITY[\"EPSG\",\"4326\"]]\n");
+            if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE) {
+                out.write("Coordinate System is `'\n");
+            } else {
+                out.write("Coordinate System is:\n");
+                out.write("GEOGCS[\"WGS 84\",\n");
+                out.write("    DATUM[\"WGS_1984\",\n");
+                out.write("        SPHEROID[\"WGS 84\",6378137,298.257223563,\n");
+                out.write("            AUTHORITY[\"EPSG\",\"7030\"]],\n");
+                out.write("        TOWGS84[0,0,0,0,0,0,0],\n");
+                out.write("        AUTHORITY[\"EPSG\",\"6326\"]],\n");
+                out.write("    PRIMEM[\"Greenwich\",0,\n");
+                out.write("        AUTHORITY[\"EPSG\",\"8901\"]],\n");
+                out.write("    UNIT[\"degree\",0.0174532925199433,\n");
+                out.write("        AUTHORITY[\"EPSG\",\"9108\"]],\n");
+                out.write("    AUTHORITY[\"EPSG\",\"4326\"]]\n");
+            }
             out.write("Metadata:\n");
             out.write(String.format("  NITF_ABPP=%02d\n", segment1.getActualBitsPerPixelPerBand()));
             out.write(String.format("  NITF_CCS_COLUMN=%d\n", segment1.getImageLocationColumn()));
@@ -127,7 +131,11 @@ public class FileComparison
             out.write(String.format("  NITF_IALVL=%d\n", segment1.getImageAttachmentLevel()));
             out.write(String.format("  NITF_IC=%s\n", segment1.getImageCompression().getTextEquivalent()));
             out.write(String.format("  NITF_ICAT=%s\n", segment1.getImageCategory().getTextEquivalent()));
-            out.write(String.format("  NITF_ICORDS=%s\n", segment1.getImageCoordinatesRepresentation().getTextEquivalent()));
+            if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE) {
+                out.write("  NITF_ICORDS=\n");
+            } else {
+                out.write(String.format("  NITF_ICORDS=%s\n", segment1.getImageCoordinatesRepresentation().getTextEquivalent()));
+            }
             out.write(String.format("  NITF_IDATIM=%s\n", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime())));
             out.write(String.format("  NITF_IDLVL=%d\n", segment1.getImageDisplayLevel()));
             if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.DECIMALDEGREES) {
@@ -145,6 +153,13 @@ public class FileComparison
             out.write(String.format("  NITF_ILOC_COLUMN=%d\n", segment1.getImageLocationColumn()));
             out.write(String.format("  NITF_ILOC_ROW=%d\n", segment1.getImageLocationRow()));
             out.write(String.format("  NITF_IMAG=%-4.1f\n", segment1.getImageMagnification()));
+            if (segment1.getNumberOfImageComments() > 0) {
+                out.write("  NITF_IMAGE_COMMENTS=");
+                for (int i = 0; i < segment1.getNumberOfImageComments(); ++i) {
+                    out.write(String.format("%-80s", segment1.getImageCommentZeroBase(i)));
+                }
+                out.write("\n");
+            }
             out.write(String.format("  NITF_IMODE=%s\n", segment1.getImageMode().getTextEquivalent()));
             out.write(String.format("  NITF_IREP=%s\n", segment1.getImageRepresentation().getTextEquivalent()));
             out.write(String.format("  NITF_ISCATP=%s\n", segment1.getSecurityMetadata().getClassificationAuthorityType()));
@@ -193,32 +208,38 @@ public class FileComparison
     // This is ugly - feel free to fix it any time.
     private static String makeGeoString(ImageCoordinatePair coords) {
         double latitude = coords.getLatitude();
+        double longitude = coords.getLongitude();
+
+        String northSouth = "N";
+        if (latitude < 0.0) {
+            northSouth = "S";
+            latitude = Math.abs(latitude);
+        }
+        String eastWest = "E";
+        if (longitude < 0.0) {
+            eastWest = "W";
+            longitude = Math.abs(longitude);
+        }
+
         int latDegrees = (int)Math.floor(latitude);
         double minutesAndSecondsPart = (latitude -latDegrees) * 60;
         int latMinutes = (int)Math.floor(minutesAndSecondsPart);
         double secondsPart = (minutesAndSecondsPart - latMinutes) * 60;
         int latSeconds = (int)Math.round(secondsPart);
 
-        double longitude = coords.getLongitude();
         int lonDegrees = (int)Math.floor(longitude);
         minutesAndSecondsPart = (longitude - lonDegrees) * 60;
         int lonMinutes = (int)Math.floor(minutesAndSecondsPart);
         secondsPart = (minutesAndSecondsPart - lonMinutes) * 60;
         int lonSeconds = (int)Math.round(secondsPart);
 
-        String northSouth = "N";
-        if (latitude < 0.0) {
-            northSouth = "S";
-        }
-        String eastWest = "E";
-        if (longitude < 0.0) {
-            eastWest = "W";
-        }
         return String.format("%02d%02d%02d%s%03d%02d%02d%s", latDegrees, latMinutes, latSeconds, northSouth, lonDegrees, lonMinutes, lonSeconds, eastWest);
     }
     private static void generateGdalMetadata(String filename) {
         try {
-            Process process = new ProcessBuilder("gdalinfo", filename).start();
+            ProcessBuilder processBuilder = new ProcessBuilder("gdalinfo", filename);
+            processBuilder.environment().put("NITF_OPEN_UNDERLYING_DS", "NO");
+            Process process = processBuilder.start();
             BufferedWriter out = null;
             try {
                 FileWriter fstream = new FileWriter(filename + THEIR_OUTPUT_EXTENSION);
@@ -230,32 +251,20 @@ public class FileComparison
             try {
                 do {
                     String line = infoOutputReader.readLine();
-                    if (line.startsWith("Corner Coordinates:")) {
-                        continue;
-                    }
-                    if (line.startsWith("Upper Left  (")) {
-                        continue;
-                    }
-                    if (line.startsWith("Upper Right (")) {
-                        continue;
-                    }
-                    if (line.startsWith("Lower Left  (")) {
-                        continue;
-                    }
-                    if (line.startsWith("Lower Right (")) {
-                        continue;
-                    }
-                    if (line.startsWith("Center      (")) {
-                        continue;
-                    }
-                    if (line.startsWith("Band 1 Block=")) {
-                        continue;
-                    }
                     if (line.startsWith("Origin = (")) {
                         continue;
                     }
                     if (line.startsWith("Pixel Size = (")) {
                         continue;
+                    }
+                    if (line.startsWith("Corner Coordinates:")) {
+                        break;
+                    }
+                    if (line.startsWith("Band 1 Block=")) {
+                        break;
+                    }
+                    if (line.startsWith("Image Structure Metadata:")) {
+                        break;
                     }
                     out.write(line + "\n");
                 } while (infoOutputReader.ready());
