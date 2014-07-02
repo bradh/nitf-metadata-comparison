@@ -19,6 +19,7 @@ import difflib.Delta;
 import difflib.DiffUtils;
 import difflib.Patch;
 
+import org.codice.nitf.filereader.ImageCompression;
 import org.codice.nitf.filereader.ImageCoordinatePair;
 import org.codice.nitf.filereader.ImageCoordinatesRepresentation;
 import org.codice.nitf.filereader.NitfHeaderReader;
@@ -58,7 +59,6 @@ public class FileComparison
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-
         NitfImageSegment segment1 = null;
         if (header.getNumberOfImageSegments() >= 1) {
             segment1 = header.getImageSegment(1);
@@ -200,7 +200,24 @@ public class FileComparison
                 if (segment1.getImageTargetId().length() > 0) {
                     out.write(String.format("  NITF_TGTID=%17s\n", segment1.getImageTargetId()));
                 } else {
-                    out.write("  NITF_TGTID=");
+                    out.write("  NITF_TGTID=\n");
+                }
+                switch (segment1.getImageCompression()) {
+                    case JPEG:
+                    case JPEGMASK:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=JPEG\n");
+                        break;
+                    case BILEVEL:
+                    case BILEVELMASK:
+                    case DOWNSAMPLEDJPEG:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=BILEVEL\n");
+                        break;
+                    case LOSSLESSJPEG:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=LOSSLESS JPEG\n");
+                        break;
                 }
             }
             if (header.getNumberOfImageSegments() > 1) {
@@ -238,13 +255,27 @@ public class FileComparison
         int latMinutes = (int)Math.floor(minutesAndSecondsPart);
         double secondsPart = (minutesAndSecondsPart - latMinutes) * 60;
         int latSeconds = (int)Math.round(secondsPart);
-
+        if (latSeconds == 60) {
+            latMinutes++;
+            latSeconds = 0;
+        }
+        if (latMinutes == 60) {
+            latDegrees++;
+            latMinutes = 0;
+        }
         int lonDegrees = (int)Math.floor(longitude);
         minutesAndSecondsPart = (longitude - lonDegrees) * 60;
         int lonMinutes = (int)Math.floor(minutesAndSecondsPart);
         secondsPart = (minutesAndSecondsPart - lonMinutes) * 60;
         int lonSeconds = (int)Math.round(secondsPart);
-
+        if (lonSeconds == 60) {
+            lonMinutes++;
+            lonSeconds = 0;
+        }
+        if (lonMinutes == 60) {
+            lonDegrees++;
+            lonMinutes = 0;
+        }
         return String.format("%02d%02d%02d%s%03d%02d%02d%s", latDegrees, latMinutes, latSeconds, northSouth, lonDegrees, lonMinutes, lonSeconds, eastWest);
     }
     private static void generateGdalMetadata(String filename) {
@@ -275,9 +306,6 @@ public class FileComparison
                     if (line.startsWith("Band 1 Block=")) {
                         break;
                     }
-                    if (line.startsWith("Image Structure Metadata:")) {
-                        break;
-                    }
                     out.write(line + "\n");
                 } while (infoOutputReader.ready());
                 out.close();
@@ -299,6 +327,7 @@ public class FileComparison
         for (Delta delta: patch.getDeltas()) {
                 System.out.println(delta);
         }
+        System.out.println("  * Done");
     }
 
     private static List<String> fileToLines(String filename) {
