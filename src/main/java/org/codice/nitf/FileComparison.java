@@ -14,6 +14,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.TreeMap;
 
 import difflib.Delta;
 import difflib.DiffUtils;
@@ -92,116 +93,112 @@ public class FileComparison
                 out.write("    AUTHORITY[\"EPSG\",\"4326\"]]\n");
             }
             out.write("Metadata:\n");
-            if (segment1 != null) {
-                out.write(String.format("  NITF_ABPP=%02d\n", segment1.getActualBitsPerPixelPerBand()));
-                out.write(String.format("  NITF_CCS_COLUMN=%d\n", segment1.getImageLocationColumn()));
-                out.write(String.format("  NITF_CCS_ROW=%d\n", segment1.getImageLocationRow()));
-            }
-            out.write(String.format("  NITF_CLEVEL=%02d\n", header.getComplexityLevel()));
-            out.write(String.format("  NITF_ENCRYP=0\n"));
-            out.write(String.format("  NITF_FBKGC=%3d,%3d,%3d\n",
+            TreeMap <String, String> metadata = new TreeMap<String, String>();
+            metadata.put("NITF_CLEVEL", String.format("%02d", header.getComplexityLevel()));
+            metadata.put("NITF_ENCRYP", "0");
+            metadata.put("NITF_FBKGC", (String.format("%3d,%3d,%3d",
                         (int)(header.getFileBackgroundColourRed() & 0xFF),
                         (int)(header.getFileBackgroundColourGreen() & 0xFF),
-                        (int)(header.getFileBackgroundColourBlue() & 0xFF)));
-            out.write(String.format("  NITF_FDT=%s\n", new SimpleDateFormat("yyyyMMddHHmmss").format(header.getFileDateTime())));
+                        (int)(header.getFileBackgroundColourBlue() & 0xFF))));
+            metadata.put("NITF_FDT", new SimpleDateFormat("yyyyMMddHHmmss").format(header.getFileDateTime()));
             switch (header.getFileType()) {
                 case NSIF_ONE_ZERO:
-                    out.write("  NITF_FHDR=NSIF01.00\n");
+                    metadata.put("NITF_FHDR", "NSIF01.00");
                     break;
                 case NITF_TWO_ZERO:
-                    out.write("  NITF_FHDR=NITF02.00\n");
+                    metadata.put("NITF_FHDR", "NITF02.00");
                     break;
                 case NITF_TWO_ONE:
-                    out.write("  NITF_FHDR=NITF02.10\n");
+                    metadata.put("NITF_FHDR", "NITF02.10");
                     break;
             }
-            out.write(String.format("  NITF_FSCATP=%s\n", header.getFileSecurityMetadata().getClassificationAuthorityType()));
-            out.write(String.format("  NITF_FSCAUT=%s\n", header.getFileSecurityMetadata().getClassificationAuthority()));
-            out.write(String.format("  NITF_FSCLAS=%s\n", header.getFileSecurityMetadata().getSecurityClassification().getTextEquivalent()));
-            out.write(String.format("  NITF_FSCLSY=%s\n", header.getFileSecurityMetadata().getSecurityClassificationSystem()));
-            out.write(String.format("  NITF_FSCLTX=%s\n", header.getFileSecurityMetadata().getClassificationText()));
-            out.write(String.format("  NITF_FSCODE=%s\n", header.getFileSecurityMetadata().getCodewords()));
-            out.write(String.format("  NITF_FSCOP=%s\n", header.getFileSecurityMetadata().getFileCopyNumber()));
-            out.write(String.format("  NITF_FSCPYS=%s\n", header.getFileSecurityMetadata().getFileNumberOfCopies()));
-            out.write(String.format("  NITF_FSCRSN=%s\n", header.getFileSecurityMetadata().getClassificationReason()));
-            out.write(String.format("  NITF_FSCTLH=%s\n", header.getFileSecurityMetadata().getControlAndHandling()));
-            out.write(String.format("  NITF_FSCTLN=%s\n", header.getFileSecurityMetadata().getSecurityControlNumber()));
-            out.write(String.format("  NITF_FSDCDT=%s\n", header.getFileSecurityMetadata().getDeclassificationDate()));
-            out.write(String.format("  NITF_FSDCTP=%s\n", header.getFileSecurityMetadata().getDeclassificationType()));
-            out.write(String.format("  NITF_FSDCXM=%s\n", header.getFileSecurityMetadata().getDeclassificationExemption()));
-            out.write(String.format("  NITF_FSDG=%s\n", header.getFileSecurityMetadata().getDowngrade()));
-            out.write(String.format("  NITF_FSDGDT=%s\n", header.getFileSecurityMetadata().getDowngradeDate()));
-            out.write(String.format("  NITF_FSREL=%s\n", header.getFileSecurityMetadata().getReleaseInstructions()));
-            out.write(String.format("  NITF_FSSRDT=%s\n", header.getFileSecurityMetadata().getSecuritySourceDate()));
-            out.write(String.format("  NITF_FTITLE=%s\n", header.getFileTitle()));
+            metadata.put("NITF_FSCATP", header.getFileSecurityMetadata().getClassificationAuthorityType());
+            metadata.put("NITF_FSCAUT", header.getFileSecurityMetadata().getClassificationAuthority());
+            metadata.put("NITF_FSCLAS", header.getFileSecurityMetadata().getSecurityClassification().getTextEquivalent());
+            metadata.put("NITF_FSCLSY", header.getFileSecurityMetadata().getSecurityClassificationSystem());
+            metadata.put("NITF_FSCLTX", header.getFileSecurityMetadata().getClassificationText());
+            metadata.put("NITF_FSCODE", header.getFileSecurityMetadata().getCodewords());
+            metadata.put("NITF_FSCOP", header.getFileSecurityMetadata().getFileCopyNumber());
+            metadata.put("NITF_FSCPYS", header.getFileSecurityMetadata().getFileNumberOfCopies());
+            metadata.put("NITF_FSCRSN", header.getFileSecurityMetadata().getClassificationReason());
+            metadata.put("NITF_FSCTLH", header.getFileSecurityMetadata().getControlAndHandling());
+            metadata.put("NITF_FSCTLN", header.getFileSecurityMetadata().getSecurityControlNumber());
+            metadata.put("NITF_FSDCDT", header.getFileSecurityMetadata().getDeclassificationDate());
+            metadata.put("NITF_FSDCTP", header.getFileSecurityMetadata().getDeclassificationType());
+            metadata.put("NITF_FSDCXM", header.getFileSecurityMetadata().getDeclassificationExemption());
+            metadata.put("NITF_FSDG", header.getFileSecurityMetadata().getDowngrade());
+            metadata.put("NITF_FSDGDT", header.getFileSecurityMetadata().getDowngradeDate());
+            metadata.put("NITF_FSREL", header.getFileSecurityMetadata().getReleaseInstructions());
+            metadata.put("NITF_FSSRDT", header.getFileSecurityMetadata().getSecuritySourceDate());
+            metadata.put("NITF_FTITLE", header.getFileTitle());
+            metadata.put("NITF_ONAME", header.getOriginatorsName());
+            metadata.put("NITF_OPHONE", header.getOriginatorsPhoneNumber());
+            metadata.put("NITF_OSTAID", header.getOriginatingStationId());
+            metadata.put("NITF_STYPE", header.getStandardType());
             if (segment1 != null) {
-                out.write(String.format("  NITF_IALVL=%d\n", segment1.getImageAttachmentLevel()));
-                out.write(String.format("  NITF_IC=%s\n", segment1.getImageCompression().getTextEquivalent()));
-                out.write(String.format("  NITF_ICAT=%s\n", segment1.getImageCategory().getTextEquivalent()));
+                metadata.put("NITF_ABPP", String.format("%02d", segment1.getActualBitsPerPixelPerBand()));
+                metadata.put("NITF_CCS_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
+                metadata.put("NITF_CCS_ROW", String.format("%d", segment1.getImageLocationRow()));
+                metadata.put("NITF_IALVL", String.format("%d", segment1.getImageAttachmentLevel()));
+                metadata.put("NITF_IC", segment1.getImageCompression().getTextEquivalent());
+                metadata.put("NITF_ICAT", segment1.getImageCategory().getTextEquivalent());
                 if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE) {
-                    out.write("  NITF_ICORDS=\n");
+                    metadata.put("NITF_ICORDS", "");
                 } else {
-                    out.write(String.format("  NITF_ICORDS=%s\n", segment1.getImageCoordinatesRepresentation().getTextEquivalent()));
+                    metadata.put("NITF_ICORDS", segment1.getImageCoordinatesRepresentation().getTextEquivalent());
                 }
-                out.write(String.format("  NITF_IDATIM=%s\n", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime())));
-                out.write(String.format("  NITF_IDLVL=%d\n", segment1.getImageDisplayLevel()));
+                metadata.put("NITF_IDATIM", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime()));
+                metadata.put("NITF_IDLVL", String.format("%d", segment1.getImageDisplayLevel()));
                 if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.DECIMALDEGREES) {
-                    out.write(String.format("  NITF_IGEOLO=%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f\n", segment1.getImageCoordinates().getCoordinate00().getLatitude(), segment1.getImageCoordinates().getCoordinate00().getLongitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLongitude()));
+                    metadata.put("NITF_IGEOLO", String.format("%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f\n", segment1.getImageCoordinates().getCoordinate00().getLatitude(), segment1.getImageCoordinates().getCoordinate00().getLongitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLongitude()));
                 } else if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.GEOGRAPHIC) {
-                    out.write("  NITF_IGEOLO=");
-                    out.write(makeGeoString(segment1.getImageCoordinates().getCoordinate00()));
-                    out.write(makeGeoString(segment1.getImageCoordinates().getCoordinate0MaxCol()));
-                    out.write(makeGeoString(segment1.getImageCoordinates().getCoordinateMaxRowMaxCol()));
-                    out.write(makeGeoString(segment1.getImageCoordinates().getCoordinateMaxRow0()));
-                    out.write("\n");
+                    metadata.put("NITF_IGEOLO", String.format("%s%s%s%s", makeGeoString(segment1.getImageCoordinates().getCoordinate00()), makeGeoString(segment1.getImageCoordinates().getCoordinate0MaxCol()), makeGeoString(segment1.getImageCoordinates().getCoordinateMaxRowMaxCol()),
+                    makeGeoString(segment1.getImageCoordinates().getCoordinateMaxRow0())));
                 }
-                out.write(String.format("  NITF_IID1=%s\n", segment1.getImageIdentifier1()));
-                out.write(String.format("  NITF_IID2=%s\n", segment1.getImageIdentifier2()));
-                out.write(String.format("  NITF_ILOC_COLUMN=%d\n", segment1.getImageLocationColumn()));
-                out.write(String.format("  NITF_ILOC_ROW=%d\n", segment1.getImageLocationRow()));
-                out.write(String.format("  NITF_IMAG=%-4.1f\n", segment1.getImageMagnification()));
+                metadata.put("NITF_IID1", segment1.getImageIdentifier1());
+                metadata.put("NITF_IID2", segment1.getImageIdentifier2());
+                metadata.put("NITF_ILOC_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
+                metadata.put("NITF_ILOC_ROW", String.format("%d", segment1.getImageLocationRow()));
+                metadata.put("NITF_IMAG", String.format("%-4.1f", segment1.getImageMagnification()));
                 if (segment1.getNumberOfImageComments() > 0) {
-                    out.write("  NITF_IMAGE_COMMENTS=");
+                    StringBuilder commentBuilder = new StringBuilder();
                     for (int i = 0; i < segment1.getNumberOfImageComments(); ++i) {
-                        out.write(String.format("%-80s", segment1.getImageCommentZeroBase(i)));
+                        commentBuilder.append(String.format("%-80s", segment1.getImageCommentZeroBase(i)));
                     }
-                    out.write("\n");
+                    metadata.put("NITF_IMAGE_COMMENTS", commentBuilder.toString());
                 }
-                out.write(String.format("  NITF_IMODE=%s\n", segment1.getImageMode().getTextEquivalent()));
-                out.write(String.format("  NITF_IREP=%s\n", segment1.getImageRepresentation().getTextEquivalent()));
-                out.write(String.format("  NITF_ISCATP=%s\n", segment1.getSecurityMetadata().getClassificationAuthorityType()));
-                out.write(String.format("  NITF_ISCAUT=%s\n", segment1.getSecurityMetadata().getClassificationAuthority()));
-                out.write(String.format("  NITF_ISCLAS=%s\n", segment1.getSecurityMetadata().getSecurityClassification().getTextEquivalent()));
-                out.write(String.format("  NITF_ISCLSY=%s\n", segment1.getSecurityMetadata().getSecurityClassificationSystem()));
-                out.write(String.format("  NITF_ISCLTX=%s\n", segment1.getSecurityMetadata().getClassificationText()));
-                out.write(String.format("  NITF_ISCODE=%s\n", segment1.getSecurityMetadata().getCodewords()));
-                out.write(String.format("  NITF_ISCRSN=%s\n", segment1.getSecurityMetadata().getClassificationReason()));
-                out.write(String.format("  NITF_ISCTLH=%s\n", segment1.getSecurityMetadata().getControlAndHandling()));
-                out.write(String.format("  NITF_ISCTLN=%s\n", segment1.getSecurityMetadata().getSecurityControlNumber()));
-                out.write(String.format("  NITF_ISDCDT=%s\n", segment1.getSecurityMetadata().getDeclassificationDate()));
-                out.write(String.format("  NITF_ISDCTP=%s\n", segment1.getSecurityMetadata().getDeclassificationType()));
-                out.write(String.format("  NITF_ISDCXM=%s\n", segment1.getSecurityMetadata().getDeclassificationExemption()));
-                out.write(String.format("  NITF_ISDG=%s\n", segment1.getSecurityMetadata().getDowngrade()));
-                out.write(String.format("  NITF_ISDGDT=%s\n", segment1.getSecurityMetadata().getDowngradeDate()));
-                out.write(String.format("  NITF_ISORCE=%s\n", segment1.getImageSource()));
-                out.write(String.format("  NITF_ISREL=%s\n", segment1.getSecurityMetadata().getReleaseInstructions()));
-                out.write(String.format("  NITF_ISSRDT=%s\n", segment1.getSecurityMetadata().getSecuritySourceDate()));
-            }
-            out.write(String.format("  NITF_ONAME=%s\n", header.getOriginatorsName()));
-            out.write(String.format("  NITF_OPHONE=%s\n", header.getOriginatorsPhoneNumber()));
-            out.write(String.format("  NITF_OSTAID=%s\n", header.getOriginatingStationId()));
-            if (segment1 != null) {
-                out.write(String.format("  NITF_PJUST=%s\n", segment1.getPixelJustification().getTextEquivalent()));
-                out.write(String.format("  NITF_PVTYPE=%s\n", segment1.getPixelValueType().getTextEquivalent()));
-            }
-            out.write(String.format("  NITF_STYPE=%s\n", header.getStandardType()));
-            if (segment1 != null) {
-                // This is some wierdness from GDAL.
+                metadata.put("NITF_IMODE", segment1.getImageMode().getTextEquivalent());
+                metadata.put("NITF_IREP", segment1.getImageRepresentation().getTextEquivalent());
+                metadata.put("NITF_ISCATP", segment1.getSecurityMetadata().getClassificationAuthorityType());
+                metadata.put("NITF_ISCAUT", segment1.getSecurityMetadata().getClassificationAuthority());
+                metadata.put("NITF_ISCLAS", segment1.getSecurityMetadata().getSecurityClassification().getTextEquivalent());
+                metadata.put("NITF_ISCLSY", segment1.getSecurityMetadata().getSecurityClassificationSystem());
+                metadata.put("NITF_ISCLTX", segment1.getSecurityMetadata().getClassificationText());
+                metadata.put("NITF_ISCODE", segment1.getSecurityMetadata().getCodewords());
+                metadata.put("NITF_ISCRSN", segment1.getSecurityMetadata().getClassificationReason());
+                metadata.put("NITF_ISCTLH", segment1.getSecurityMetadata().getControlAndHandling());
+                metadata.put("NITF_ISCTLN", segment1.getSecurityMetadata().getSecurityControlNumber());
+                metadata.put("NITF_ISDCDT", segment1.getSecurityMetadata().getDeclassificationDate());
+                metadata.put("NITF_ISDCTP", segment1.getSecurityMetadata().getDeclassificationType());
+                metadata.put("NITF_ISDCXM", segment1.getSecurityMetadata().getDeclassificationExemption());
+                metadata.put("NITF_ISDG", segment1.getSecurityMetadata().getDowngrade());
+                metadata.put("NITF_ISDGDT", segment1.getSecurityMetadata().getDowngradeDate());
+                metadata.put("NITF_ISORCE", segment1.getImageSource());
+                metadata.put("NITF_ISREL", segment1.getSecurityMetadata().getReleaseInstructions());
+                metadata.put("NITF_ISSRDT", segment1.getSecurityMetadata().getSecuritySourceDate());
+                metadata.put("NITF_PJUST", segment1.getPixelJustification().getTextEquivalent());
+                metadata.put("NITF_PVTYPE", segment1.getPixelValueType().getTextEquivalent());
                 if (segment1.getImageTargetId().length() > 0) {
-                    out.write(String.format("  NITF_TGTID=%17s\n", segment1.getImageTargetId()));
+                    metadata.put("NITF_TGTID", String.format("%17s", segment1.getImageTargetId()));
                 } else {
-                    out.write("  NITF_TGTID=\n");
+                    metadata.put("NITF_TGTID", "");
                 }
+                metadata.putAll(segment1.getTREsFlat());
+            }
+            for (String key : metadata.keySet()) {
+                out.write(String.format("  %s=%s\n", key, metadata.get(key)));
+            }
+            if (segment1 != null) {
                 switch (segment1.getImageCompression()) {
                     case JPEG:
                     case JPEGMASK:
