@@ -264,6 +264,11 @@ public class FileComparison
                         out.write("Image Structure Metadata:\n");
                         out.write("  COMPRESSION=LOSSLESS JPEG\n");
                         break;
+                    case JPEG2000:
+                    case JPEG2000MASK:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=JPEG2000\n");
+                        break;
                 }
             }
             if (header.getNumberOfImageSegments() > 1) {
