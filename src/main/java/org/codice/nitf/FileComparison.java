@@ -12,8 +12,10 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 
 import difflib.Delta;
@@ -26,6 +28,9 @@ import org.codice.nitf.filereader.ImageCoordinatesRepresentation;
 import org.codice.nitf.filereader.NitfHeaderReader;
 import org.codice.nitf.filereader.NitfImageSegment;
 import org.codice.nitf.filereader.NitfSecurityClassification;
+import org.codice.nitf.filereader.Tre;
+import org.codice.nitf.filereader.TreField;
+import org.codice.nitf.filereader.TreListEntry;
 
 public class FileComparison
 {
@@ -150,7 +155,7 @@ public class FileComparison
                 metadata.put("NITF_IDATIM", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime()));
                 metadata.put("NITF_IDLVL", String.format("%d", segment1.getImageDisplayLevel()));
                 if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.DECIMALDEGREES) {
-                    metadata.put("NITF_IGEOLO", String.format("%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f\n", segment1.getImageCoordinates().getCoordinate00().getLatitude(), segment1.getImageCoordinates().getCoordinate00().getLongitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLongitude()));
+                    metadata.put("NITF_IGEOLO", String.format("%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f%+07.3f%+08.3f", segment1.getImageCoordinates().getCoordinate00().getLatitude(), segment1.getImageCoordinates().getCoordinate00().getLongitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinate0MaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getLongitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLatitude(), segment1.getImageCoordinates().getCoordinateMaxRow0().getLongitude()));
                 } else if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.GEOGRAPHIC) {
                     metadata.put("NITF_IGEOLO", String.format("%s%s%s%s", makeGeoString(segment1.getImageCoordinates().getCoordinate00()), makeGeoString(segment1.getImageCoordinates().getCoordinate0MaxCol()), makeGeoString(segment1.getImageCoordinates().getCoordinateMaxRowMaxCol()),
                     makeGeoString(segment1.getImageCoordinates().getCoordinateMaxRow0())));
@@ -193,10 +198,54 @@ public class FileComparison
                 } else {
                     metadata.put("NITF_TGTID", "");
                 }
-                metadata.putAll(segment1.getTREsFlat());
+                ArrayList<TreListEntry> tres = segment1.getTREsRawStructure();
+                for (TreListEntry entry : tres) {
+                    for (Tre tre : entry.getTresWithName()) {
+                        if (tre.getPrefix() != null) {
+                            // if it has a prefix, its probably an old-style NITF metadata field
+                            List<TreField> fields = tre.getFields();
+                            for (TreField treField: fields) {
+                                metadata.put(tre.getPrefix() + treField.getName(), treField.getFieldValue().trim());
+                            }
+                        }
+                    }
+                }
             }
             for (String key : metadata.keySet()) {
                 out.write(String.format("  %s=%s\n", key, metadata.get(key)));
+            }
+            if ((segment1 != null) && (segment1.getTREsRawStructure().size() > 0)) {
+                out.write("Metadata (xml:TRE):\n");
+                out.write("<tres>\n");
+                // TODO: iterate over file TREs
+                if (segment1 != null) {
+                    ArrayList<TreListEntry> tres = segment1.getTREsRawStructure();
+                    for (TreListEntry entry : tres) {
+                        for (Tre tre : entry.getTresWithName()) {
+                            out.write("  <tre name=\"" + tre.getName() + "\" location=\"image\">\n");
+                            List<TreField> fields = tre.getFields();
+                            for (TreField treField : fields) {
+                                if (treField.getFieldValue() != null) {
+                                    out.write("    <field name=\"" + treField.getName() + "\" value=\"" + treField.getFieldValue().trim() + "\" />\n");
+                                }
+                                if (treField.getSubFields() != null) {
+                                    System.out.println("TreField: " + treField.getName() + " has " + treField.getSubFields().size() + " subfields");
+                                    out.write("    <repeated name=\"" + treField.getName() + "\" number=\"" + treField.getSubFields().size() + "\">\n");
+                                    int i = 0;
+                                    for (TreField subField : treField.getSubFields()) {
+                                        out.write(String.format("      <group index=\"%d\">\n", i));
+                                        out.write(String.format("        <field name=\"%s\" value=\"%s\" />\n", subField.getName(), subField.getFieldValue().trim())); 
+                                        out.write(String.format("      </group>\n"));
+                                        i = i + 1;
+                                    }
+                                    out.write("    </repeated>\n");
+                                }
+                            }
+                            out.write("  </tre>\n");
+                        }
+                    }
+                }
+                out.write("</tres>\n\n");
             }
             if (segment1 != null) {
                 switch (segment1.getImageCompression()) {
@@ -277,7 +326,7 @@ public class FileComparison
     }
     private static void generateGdalMetadata(String filename) {
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder("gdalinfo", filename);
+            ProcessBuilder processBuilder = new ProcessBuilder("gdalinfo", "-mdd", "xml:TRE", filename);
             processBuilder.environment().put("NITF_OPEN_UNDERLYING_DS", "NO");
             Process process = processBuilder.start();
             BufferedWriter out = null;
