@@ -214,34 +214,20 @@ public class FileComparison
             for (String key : metadata.keySet()) {
                 out.write(String.format("  %s=%s\n", key, metadata.get(key)));
             }
-            if ((segment1 != null) && (segment1.getTREsRawStructure().size() > 0)) {
+            if ((header.getTREsRawStructure().size() > 0) || ((segment1 != null) && (segment1.getTREsRawStructure().size() > 0)))  {
                 out.write("Metadata (xml:TRE):\n");
                 out.write("<tres>\n");
-                // TODO: iterate over file TREs
+                ArrayList<TreListEntry> tres = header.getTREsRawStructure();
+                for (TreListEntry entry : tres) {
+                    for (Tre tre : entry.getTresWithName()) {
+                        outputThisTre(out, tre, "file");
+                    }
+                }
                 if (segment1 != null) {
-                    ArrayList<TreListEntry> tres = segment1.getTREsRawStructure();
+                    tres = segment1.getTREsRawStructure();
                     for (TreListEntry entry : tres) {
                         for (Tre tre : entry.getTresWithName()) {
-                            out.write("  <tre name=\"" + tre.getName() + "\" location=\"image\">\n");
-                            List<TreField> fields = tre.getFields();
-                            for (TreField treField : fields) {
-                                if (treField.getFieldValue() != null) {
-                                    out.write("    <field name=\"" + treField.getName() + "\" value=\"" + treField.getFieldValue().trim() + "\" />\n");
-                                }
-                                if (treField.getSubFields() != null) {
-                                    System.out.println("TreField: " + treField.getName() + " has " + treField.getSubFields().size() + " subfields");
-                                    out.write("    <repeated name=\"" + treField.getName() + "\" number=\"" + treField.getSubFields().size() + "\">\n");
-                                    int i = 0;
-                                    for (TreField subField : treField.getSubFields()) {
-                                        out.write(String.format("      <group index=\"%d\">\n", i));
-                                        out.write(String.format("        <field name=\"%s\" value=\"%s\" />\n", subField.getName(), subField.getFieldValue().trim())); 
-                                        out.write(String.format("      </group>\n"));
-                                        i = i + 1;
-                                    }
-                                    out.write("    </repeated>\n");
-                                }
-                            }
-                            out.write("  </tre>\n");
+                            outputThisTre(out, tre, "image");
                         }
                     }
                 }
@@ -283,6 +269,29 @@ public class FileComparison
         catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void outputThisTre(BufferedWriter out, Tre tre, String location) throws IOException {
+        out.write("  <tre name=\"" + tre.getName() + "\" location=\"" + location + "\">\n");
+        List<TreField> fields = tre.getFields();
+        for (TreField treField : fields) {
+            if (treField.getFieldValue() != null) {
+                out.write("    <field name=\"" + treField.getName() + "\" value=\"" + treField.getFieldValue().trim() + "\" />\n");
+            }
+            if (treField.getSubFields() != null) {
+                System.out.println("TreField: " + treField.getName() + " has " + treField.getSubFields().size() + " subfields");
+                out.write("    <repeated name=\"" + treField.getName() + "\" number=\"" + treField.getSubFields().size() + "\">\n");
+                int i = 0;
+                for (TreField subField : treField.getSubFields()) {
+                    out.write(String.format("      <group index=\"%d\">\n", i));
+                    out.write(String.format("        <field name=\"%s\" value=\"%s\" />\n", subField.getName(), subField.getFieldValue().trim())); 
+                    out.write(String.format("      </group>\n"));
+                    i = i + 1;
+                }
+                out.write("    </repeated>\n");
+            }
+        }
+        out.write("  </tre>\n");
     }
 
     // This is ugly - feel free to fix it any time.
