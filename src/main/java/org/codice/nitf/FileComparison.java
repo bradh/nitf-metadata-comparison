@@ -29,8 +29,9 @@ import org.codice.nitf.filereader.NitfHeaderReader;
 import org.codice.nitf.filereader.NitfImageSegment;
 import org.codice.nitf.filereader.NitfSecurityClassification;
 import org.codice.nitf.filereader.Tre;
-import org.codice.nitf.filereader.TreField;
-import org.codice.nitf.filereader.TreListEntry;
+import org.codice.nitf.filereader.TreCollection;
+import org.codice.nitf.filereader.TreEntry;
+import org.codice.nitf.filereader.TreGroup;
 
 public class FileComparison
 {
@@ -198,15 +199,13 @@ public class FileComparison
                 } else {
                     metadata.put("NITF_TGTID", "");
                 }
-                ArrayList<TreListEntry> tres = segment1.getTREsRawStructure();
-                for (TreListEntry entry : tres) {
-                    for (Tre tre : entry.getTresWithName()) {
-                        if (tre.getPrefix() != null) {
-                            // if it has a prefix, its probably an old-style NITF metadata field
-                            List<TreField> fields = tre.getFields();
-                            for (TreField treField: fields) {
-                                metadata.put(tre.getPrefix() + treField.getName(), treField.getFieldValue().trim());
-                            }
+                TreCollection treCollection = segment1.getTREsRawStructure();
+                for (Tre tre : treCollection.getTREs()) {
+                    if (tre.getPrefix() != null) {
+                        // if it has a prefix, its probably an old-style NITF metadata field
+                        List<TreEntry> entries = tre.getEntries();
+                        for (TreEntry entry: entries) {
+                            metadata.put(tre.getPrefix() + entry.getName(), entry.getFieldValue().trim());
                         }
                     }
                 }
@@ -214,21 +213,17 @@ public class FileComparison
             for (String key : metadata.keySet()) {
                 out.write(String.format("  %s=%s\n", key, metadata.get(key)));
             }
-            if ((header.getTREsRawStructure().size() > 0) || ((segment1 != null) && (segment1.getTREsRawStructure().size() > 0)))  {
+            if ((header.getTREsRawStructure().hasTREs()) || ((segment1 != null) && (segment1.getTREsRawStructure().hasTREs())))  {
                 out.write("Metadata (xml:TRE):\n");
                 out.write("<tres>\n");
-                ArrayList<TreListEntry> tres = header.getTREsRawStructure();
-                for (TreListEntry entry : tres) {
-                    for (Tre tre : entry.getTresWithName()) {
-                        outputThisTre(out, tre, "file");
-                    }
+                TreCollection treCollection = header.getTREsRawStructure();
+                for (Tre tre : treCollection.getTREs()) {
+                    outputThisTre(out, tre, "file");
                 }
                 if (segment1 != null) {
-                    tres = segment1.getTREsRawStructure();
-                    for (TreListEntry entry : tres) {
-                        for (Tre tre : entry.getTresWithName()) {
-                            outputThisTre(out, tre, "image");
-                        }
+                    treCollection = segment1.getTREsRawStructure();
+                    for (Tre tre : treCollection.getTREs()) {
+                        outputThisTre(out, tre, "image");
                     }
                 }
                 out.write("</tres>\n\n");
@@ -272,26 +267,44 @@ public class FileComparison
     }
 
     private static void outputThisTre(BufferedWriter out, Tre tre, String location) throws IOException {
-        out.write("  <tre name=\"" + tre.getName() + "\" location=\"" + location + "\">\n");
-        List<TreField> fields = tre.getFields();
-        for (TreField treField : fields) {
-            if (treField.getFieldValue() != null) {
-                out.write("    <field name=\"" + treField.getName() + "\" value=\"" + treField.getFieldValue().trim() + "\" />\n");
-            }
-            if (treField.getSubFields() != null) {
-                System.out.println("TreField: " + treField.getName() + " has " + treField.getSubFields().size() + " subfields");
-                out.write("    <repeated name=\"" + treField.getName() + "\" number=\"" + treField.getSubFields().size() + "\">\n");
-                int i = 0;
-                for (TreField subField : treField.getSubFields()) {
-                    out.write(String.format("      <group index=\"%d\">\n", i));
-                    out.write(String.format("        <field name=\"%s\" value=\"%s\" />\n", subField.getName(), subField.getFieldValue().trim())); 
-                    out.write(String.format("      </group>\n"));
-                    i = i + 1;
-                }
-                out.write("    </repeated>\n");
-            }
+        doIndent(out, 1);
+        out.write("<tre name=\"" + tre.getName() + "\" location=\"" + location + "\">\n");
+        for (TreEntry entry : tre.getEntries()) {
+            // TODO: some kind of indent level?
+            outputThisEntry(out, entry, 2);
         }
-        out.write("  </tre>\n");
+        doIndent(out, 1);
+        out.write("</tre>\n");
+    }
+
+    private static void outputThisEntry(BufferedWriter out, TreEntry entry, int indentLevel) throws IOException {
+        if (entry.getFieldValue() != null) {
+            doIndent(out, indentLevel);
+            out.write("<field name=\"" + entry.getName() + "\" value=\"" + entry.getFieldValue().trim() + "\" />\n");
+        }
+        if (entry.getGroups() != null) {
+            doIndent(out, indentLevel);
+            out.write("<repeated name=\"" + entry.getName() + "\" number=\"" + entry.getGroups().size() + "\">\n");
+            int i = 0;
+            for (TreGroup group : entry.getGroups()) {
+                doIndent(out, indentLevel + 1);
+                out.write(String.format("<group index=\"%d\">\n", i));
+                for (TreEntry groupEntry : group.getEntries()) {
+                    outputThisEntry(out, groupEntry, indentLevel + 2);
+                }
+                doIndent(out, indentLevel + 1);
+                out.write(String.format("</group>\n"));
+                i = i + 1;
+            }
+            doIndent(out, indentLevel);
+            out.write("</repeated>\n");
+        }
+    }
+
+    private static void doIndent(BufferedWriter out, int indentLevel) throws IOException {
+        for (int i = 0; i < indentLevel; ++i) {
+            out.write("  ");
+        }
     }
 
     // This is ugly - feel free to fix it any time.
