@@ -363,27 +363,44 @@ public class FileComparison
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            BufferedReader infoOutputReader = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
+            BufferedReader infoOutputReader = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"), 1000000);
+            boolean done = false;
             try {
                 do {
-                    String line = infoOutputReader.readLine();
-                    if (line.startsWith("Origin = (")) {
-                        continue;
-                    }
-                    if (line.startsWith("Pixel Size = (")) {
-                        continue;
-                    }
-                    if (line.startsWith("Corner Coordinates:")) {
-                        break;
-                    }
-                    if (line.startsWith("Band 1 Block=")) {
-                        break;
-                    }
-                    out.write(line + "\n");
-                } while (infoOutputReader.ready());
-                out.close();
+                    do {
+                        String line = infoOutputReader.readLine();
+                        if (line == null) {
+                            done = true;
+                            break;
+                        }
+                        if (line.startsWith("Origin = (")) {
+                            System.out.println("Filtering on Origin");
+                            continue;
+                        }
+                        if (line.startsWith("Pixel Size = (")) {
+                            System.out.println("Filtering on Pixel Size");
+                            continue;
+                        }
+                        if (line.startsWith("Corner Coordinates:")) {
+                            System.out.println("Exiting on Corner Coordinates");
+                            done = true;
+                            break;
+                        }
+                        if (line.startsWith("Band 1 Block=")) {
+                            System.out.println("Exiting on Band 1 Block");
+                            done = true;
+                            break;
+                        }
+                        out.write(line + "\n");
+                    } while (infoOutputReader.ready() && (!done));
+                    Thread.sleep(100);
+                } while (!done);
             } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+            out.close();
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         } catch (IOException e) {
