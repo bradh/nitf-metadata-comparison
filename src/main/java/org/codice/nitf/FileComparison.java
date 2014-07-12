@@ -170,7 +170,7 @@ public class FileComparison
                 metadata.put("NITF_IID2", segment1.getImageIdentifier2());
                 metadata.put("NITF_ILOC_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
                 metadata.put("NITF_ILOC_ROW", String.format("%d", segment1.getImageLocationRow()));
-                metadata.put("NITF_IMAG", String.format("%-4.1f", segment1.getImageMagnification()));
+                metadata.put("NITF_IMAG", segment1.getImageMagnification());
                 if (segment1.getNumberOfImageComments() > 0) {
                     StringBuilder commentBuilder = new StringBuilder();
                     for (int i = 0; i < segment1.getNumberOfImageComments(); ++i) {
