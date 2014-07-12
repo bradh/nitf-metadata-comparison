@@ -25,6 +25,7 @@ import difflib.Patch;
 import org.codice.nitf.filereader.ImageCompression;
 import org.codice.nitf.filereader.ImageCoordinatePair;
 import org.codice.nitf.filereader.ImageCoordinatesRepresentation;
+import org.codice.nitf.filereader.NitfDataExtensionSegment;
 import org.codice.nitf.filereader.NitfHeaderReader;
 import org.codice.nitf.filereader.NitfImageSegment;
 import org.codice.nitf.filereader.NitfSecurityClassification;
@@ -69,6 +70,10 @@ public class FileComparison
         NitfImageSegment segment1 = null;
         if (header.getNumberOfImageSegments() >= 1) {
             segment1 = header.getImageSegment(1);
+        }
+        NitfDataExtensionSegment des1 = null;
+        if (header.getNumberOfDataExtensionSegments() >= 1) {
+            des1 = header.getDataExtensionSegment(1);
         }
 
         BufferedWriter out = null;
@@ -213,7 +218,8 @@ public class FileComparison
             for (String key : metadata.keySet()) {
                 out.write(String.format("  %s=%s\n", key, metadata.get(key)));
             }
-            if ((header.getTREsRawStructure().hasTREs()) || ((segment1 != null) && (segment1.getTREsRawStructure().hasTREs())))  {
+            if ((header.getTREsRawStructure().hasTREs()) || ((segment1 != null) && (segment1.getTREsRawStructure().hasTREs())) 
+                || ((des1 != null) && (des1.getTREsRawStructure().hasTREs())))  {
                 out.write("Metadata (xml:TRE):\n");
                 out.write("<tres>\n");
                 TreCollection treCollection = header.getTREsRawStructure();
@@ -224,6 +230,12 @@ public class FileComparison
                     treCollection = segment1.getTREsRawStructure();
                     for (Tre tre : treCollection.getTREs()) {
                         outputThisTre(out, tre, "image");
+                    }
+                }
+                if (des1 != null) {
+                    treCollection = des1.getTREsRawStructure();
+                    for (Tre tre : treCollection.getTREs()) {
+                        outputThisTre(out, tre, "des TRE_OVERFLOW");
                     }
                 }
                 out.write("</tres>\n\n");
@@ -268,7 +280,7 @@ public class FileComparison
 
     private static void outputThisTre(BufferedWriter out, Tre tre, String location) throws IOException {
         doIndent(out, 1);
-        out.write("<tre name=\"" + tre.getName() + "\" location=\"" + location + "\">\n");
+        out.write("<tre name=\"" + tre.getName().trim() + "\" location=\"" + location + "\">\n");
         for (TreEntry entry : tre.getEntries()) {
             // TODO: some kind of indent level?
             outputThisEntry(out, entry, 2);
@@ -282,7 +294,7 @@ public class FileComparison
             doIndent(out, indentLevel);
             out.write("<field name=\"" + entry.getName() + "\" value=\"" + entry.getFieldValue().trim() + "\" />\n");
         }
-        if (entry.getGroups() != null) {
+        if ((entry.getGroups() != null) && (entry.getGroups().size() > 0)) {
             doIndent(out, indentLevel);
             out.write("<repeated name=\"" + entry.getName() + "\" number=\"" + entry.getGroups().size() + "\">\n");
             int i = 0;
