@@ -168,6 +168,11 @@ public class FileComparison
                 }
                 metadata.put("NITF_IID1", segment1.getImageIdentifier1());
                 metadata.put("NITF_IID2", segment1.getImageIdentifier2());
+                if (segment1.getImageIdentifier2().endsWith(".LF2")) {
+                    // TODO: this is a quick hack - should be generalised and maybe moved into main code
+                    metadata.put("NITF_SERIES_ABBREVIATION", "LFC-FR (Day)");
+                    metadata.put("NITF_SERIES_NAME", "Low Flying Chart (Day) - Host Nation");
+                }
                 metadata.put("NITF_ILOC_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
                 metadata.put("NITF_ILOC_ROW", String.format("%d", segment1.getImageLocationRow()));
                 metadata.put("NITF_IMAG", segment1.getImageMagnification());
@@ -239,6 +244,46 @@ public class FileComparison
                     }
                 }
                 out.write("</tres>\n\n");
+            }
+            TreeMap <String, String> rpc = new TreeMap<String, String>();
+            if (segment1 != null) {
+                // Walk the segment1 TRE collection and add RPC entries here
+                TreCollection treCollection = segment1.getTREsRawStructure();
+                for (Tre tre : treCollection.getTREs()) {
+                    if (tre.getName().equals("RPC00B")) {
+                        for (TreEntry entry : tre.getEntries()) {
+                            if (entry.getName().equals("SUCCESS")) {
+                                continue;
+                            }
+                            if (entry.getName().equals("ERR_BIAS") || entry.getName().equals("ERR_RAND")) {
+                                continue;
+                            }
+                            if (entry.getFieldValue() != null) {
+                                if (entry.getName().equals("LONG_OFF") || entry.getName().equals("LONG_SCALE") || entry.getName().equals("LAT_OFF") || entry.getName().equals("LAT_SCALE")) {
+                                    Double rpcValue = Double.parseDouble(entry.getFieldValue());
+                                    rpc.put(entry.getName(), rpcValue.toString());
+                                } else {
+                                    Integer rpcValue = Integer.parseInt(entry.getFieldValue());
+                                    rpc.put(entry.getName(), rpcValue.toString());
+                                }
+                            } else if ((entry.getGroups() != null) && (entry.getGroups().size() > 0)) {
+                                StringBuilder builder = new StringBuilder();
+                                for (TreGroup group : entry.getGroups()) {
+                                    for (TreEntry groupEntry : group.getEntries()) {
+                                        builder.append(String.format("%s ", groupEntry.getFieldValue()));
+                                    }
+                                }
+                                rpc.put(entry.getName(), builder.toString());
+                            }
+                        }
+                    }
+                }
+            }
+            if (rpc.keySet().size() > 0) {
+                out.write("RPC Metadata:\n");
+                for (String tagname : rpc.keySet()) {
+                    out.write(String.format("  %s=%s\n", tagname, rpc.get(tagname)));
+                }
             }
             if (segment1 != null) {
                 switch (segment1.getImageCompression()) {
@@ -386,20 +431,20 @@ public class FileComparison
                             break;
                         }
                         if (line.startsWith("Origin = (")) {
-                            System.out.println("Filtering on Origin");
+                            // System.out.println("Filtering on Origin");
                             continue;
                         }
                         if (line.startsWith("Pixel Size = (")) {
-                            System.out.println("Filtering on Pixel Size");
+                            // System.out.println("Filtering on Pixel Size");
                             continue;
                         }
                         if (line.startsWith("Corner Coordinates:")) {
-                            System.out.println("Exiting on Corner Coordinates");
+                            // System.out.println("Exiting on Corner Coordinates");
                             done = true;
                             break;
                         }
                         if (line.startsWith("Band 1 Block=")) {
-                            System.out.println("Exiting on Band 1 Block");
+                            // System.out.println("Exiting on Band 1 Block");
                             done = true;
                             break;
                         }
