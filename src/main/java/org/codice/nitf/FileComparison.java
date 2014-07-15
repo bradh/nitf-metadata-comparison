@@ -350,7 +350,6 @@ public class FileComparison
         doIndent(out, 1);
         out.write("<tre name=\"" + tre.getName().trim() + "\" location=\"" + location + "\">\n");
         for (TreEntry entry : tre.getEntries()) {
-            // TODO: some kind of indent level?
             outputThisEntry(out, entry, 2);
         }
         doIndent(out, 1);
