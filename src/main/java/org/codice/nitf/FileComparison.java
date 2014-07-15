@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -239,6 +240,37 @@ public class FileComparison
                 }
                 out.write("</tres>\n\n");
             }
+            if (segment1 != null) {
+                switch (segment1.getImageCompression()) {
+                    case JPEG:
+                    case JPEGMASK:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=JPEG\n");
+                        break;
+                    case BILEVEL:
+                    case BILEVELMASK:
+                    case DOWNSAMPLEDJPEG:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=BILEVEL\n");
+                        break;
+                    case LOSSLESSJPEG:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=LOSSLESS JPEG\n");
+                        break;
+                    case JPEG2000:
+                    case JPEG2000MASK:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=JPEG2000\n");
+                        break;
+                }
+            }
+            if (header.getNumberOfImageSegments() > 1) {
+                out.write("Subdatasets:\n");
+                for (int i = 0; i < header.getNumberOfImageSegments(); ++i) {
+                    out.write(String.format("  SUBDATASET_%d_NAME=NITF_IM:%d:%s\n", i+1, i, filename));
+                    out.write(String.format("  SUBDATASET_%d_DESC=Image %d of %s\n", i+1, i+1, filename));
+                }
+            }
             TreeMap <String, String> rpc = new TreeMap<String, String>();
             if (segment1 != null) {
                 // Walk the segment1 TRE collection and add RPC entries here
@@ -279,37 +311,6 @@ public class FileComparison
                     out.write(String.format("  %s=%s\n", tagname, rpc.get(tagname)));
                 }
             }
-            if (segment1 != null) {
-                switch (segment1.getImageCompression()) {
-                    case JPEG:
-                    case JPEGMASK:
-                        out.write("Image Structure Metadata:\n");
-                        out.write("  COMPRESSION=JPEG\n");
-                        break;
-                    case BILEVEL:
-                    case BILEVELMASK:
-                    case DOWNSAMPLEDJPEG:
-                        out.write("Image Structure Metadata:\n");
-                        out.write("  COMPRESSION=BILEVEL\n");
-                        break;
-                    case LOSSLESSJPEG:
-                        out.write("Image Structure Metadata:\n");
-                        out.write("  COMPRESSION=LOSSLESS JPEG\n");
-                        break;
-                    case JPEG2000:
-                    case JPEG2000MASK:
-                        out.write("Image Structure Metadata:\n");
-                        out.write("  COMPRESSION=JPEG2000\n");
-                        break;
-                }
-            }
-            if (header.getNumberOfImageSegments() > 1) {
-                out.write("Subdatasets:\n");
-                for (int i = 0; i < header.getNumberOfImageSegments(); ++i) {
-                    out.write(String.format("  SUBDATASET_%d_NAME=NITF_IM:%d:%s\n", i+1, i, filename));
-                    out.write(String.format("  SUBDATASET_%d_DESC=Image %d of %s\n", i+1, i+1, filename));
-                }
-            }
             out.close();
         }
         catch (IOException e) {
@@ -324,6 +325,22 @@ public class FileComparison
                 List<TreEntry> entries = tre.getEntries();
                 for (TreEntry entry: entries) {
                     metadata.put(tre.getPrefix() + entry.getName(), entry.getFieldValue().trim());
+                }
+            } else if ("ICHIPB".equals(tre.getName())) {
+                // special case
+                List<TreEntry> entries = tre.getEntries();
+                for (TreEntry entry: entries) {
+                    if ("XFRM_FLAG".equals(entry.getName())) {
+                        // GDAL skips this one
+                        continue;
+                    }
+                    BigDecimal value = new BigDecimal(entry.getFieldValue().trim()).stripTrailingZeros();
+                    if ("ANAMRPH_CORR".equals(entry.getName())) {
+                        // Special case for GDAL
+                        metadata.put("ICHIP_ANAMORPH_CORR", value.toPlainString());
+                    } else {
+                        metadata.put("ICHIP_" + entry.getName(), value.toPlainString());
+                    }
                 }
             }
         }
