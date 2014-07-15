@@ -146,6 +146,8 @@ public class FileComparison
             metadata.put("NITF_OPHONE", header.getOriginatorsPhoneNumber());
             metadata.put("NITF_OSTAID", header.getOriginatingStationId());
             metadata.put("NITF_STYPE", header.getStandardType());
+            TreCollection treCollection = header.getTREsRawStructure();
+            addOldStyleMetadata(metadata, treCollection);
             if (segment1 != null) {
                 metadata.put("NITF_ABPP", String.format("%02d", segment1.getActualBitsPerPixelPerBand()));
                 metadata.put("NITF_CCS_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
@@ -209,16 +211,8 @@ public class FileComparison
                 } else {
                     metadata.put("NITF_TGTID", "");
                 }
-                TreCollection treCollection = segment1.getTREsRawStructure();
-                for (Tre tre : treCollection.getTREs()) {
-                    if (tre.getPrefix() != null) {
-                        // if it has a prefix, its probably an old-style NITF metadata field
-                        List<TreEntry> entries = tre.getEntries();
-                        for (TreEntry entry: entries) {
-                            metadata.put(tre.getPrefix() + entry.getName(), entry.getFieldValue().trim());
-                        }
-                    }
-                }
+                treCollection = segment1.getTREsRawStructure();
+                addOldStyleMetadata(metadata, treCollection);
             }
             for (String key : metadata.keySet()) {
                 out.write(String.format("  %s=%s\n", key, metadata.get(key)));
@@ -227,7 +221,7 @@ public class FileComparison
                 || ((des1 != null) && (des1.getTREsRawStructure().hasTREs())))  {
                 out.write("Metadata (xml:TRE):\n");
                 out.write("<tres>\n");
-                TreCollection treCollection = header.getTREsRawStructure();
+                treCollection = header.getTREsRawStructure();
                 for (Tre tre : treCollection.getTREs()) {
                     outputThisTre(out, tre, "file");
                 }
@@ -248,7 +242,7 @@ public class FileComparison
             TreeMap <String, String> rpc = new TreeMap<String, String>();
             if (segment1 != null) {
                 // Walk the segment1 TRE collection and add RPC entries here
-                TreCollection treCollection = segment1.getTREsRawStructure();
+                treCollection = segment1.getTREsRawStructure();
                 for (Tre tre : treCollection.getTREs()) {
                     if (tre.getName().equals("RPC00B")) {
                         for (TreEntry entry : tre.getEntries()) {
@@ -320,6 +314,18 @@ public class FileComparison
         }
         catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void addOldStyleMetadata(TreeMap <String, String> metadata, TreCollection treCollection) {
+        for (Tre tre : treCollection.getTREs()) {
+            if (tre.getPrefix() != null) {
+                // if it has a prefix, its probably an old-style NITF metadata field
+                List<TreEntry> entries = tre.getEntries();
+                for (TreEntry entry: entries) {
+                    metadata.put(tre.getPrefix() + entry.getName(), entry.getFieldValue().trim());
+                }
+            }
         }
     }
 
