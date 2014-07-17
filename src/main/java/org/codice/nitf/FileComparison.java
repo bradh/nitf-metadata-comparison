@@ -2,6 +2,7 @@ package org.codice.nitf;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -296,11 +297,33 @@ public class FileComparison
                                 StringBuilder builder = new StringBuilder();
                                 for (TreGroup group : entry.getGroups()) {
                                     for (TreEntry groupEntry : group.getEntries()) {
-                                        builder.append(String.format("%s ", groupEntry.getFieldValue()));
+                                        try {
+                                            double fieldVal = Double.parseDouble(groupEntry.getFieldValue());
+                                            builder.append(cleanupNumberString(fieldVal));
+                                            builder.append(" ");
+                                        } catch (NumberFormatException e) {
+                                            builder.append(String.format("%s ", groupEntry.getFieldValue()));
+                                        }
                                     }
                                 }
                                 rpc.put(entry.getName(), builder.toString());
                             }
+                        }
+                        try {
+                            double longOff = Double.parseDouble(tre.getFieldValue("LONG_OFF"));
+                            double longScale = Double.parseDouble(tre.getFieldValue("LONG_SCALE"));
+                            double longMin = longOff - (longScale / 2.0);
+                            double longMax = longOff + (longScale / 2.0);
+                            rpc.put("MAX_LONG", cleanupNumberString(longMax));
+                            rpc.put("MIN_LONG", cleanupNumberString(longMin));
+                            double latOff = Double.parseDouble(tre.getFieldValue("LAT_OFF"));
+                            double latScale = Double.parseDouble(tre.getFieldValue("LAT_SCALE"));
+                            double latMin = latOff - (latScale / 2.0);
+                            double latMax = latOff + (latScale / 2.0);
+                            rpc.put("MAX_LAT", cleanupNumberString(latMax));
+                            rpc.put("MIN_LAT", cleanupNumberString(latMin));
+                        } catch (ParseException e) {
+                            e.printStackTrace();
                         }
                     }
                 }
@@ -316,6 +339,19 @@ public class FileComparison
         catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    static private String cleanupNumberString(double fieldVal) {
+        if (fieldVal == (int)fieldVal) {
+            return String.format("%d", (int)fieldVal);
+        }
+        String naiveString = String.format("%.16g", fieldVal);
+        if (naiveString.contains("e-")) {
+            return naiveString.replaceAll("\\.?0*e", "e");
+        } else if (naiveString.contains(".")) {
+            return naiveString.replaceAll("\\.?0*$", "");
+        }
+        return naiveString;
     }
 
     private static void addOldStyleMetadata(TreeMap <String, String> metadata, TreCollection treCollection) {
@@ -493,10 +529,15 @@ public class FileComparison
 
         Patch patch = DiffUtils.diff(theirs, ours);
 
-        for (Delta delta: patch.getDeltas()) {
-                System.out.println(delta);
+        if (patch.getDeltas().size() > 0) {
+            for (Delta delta: patch.getDeltas()) {
+                    System.out.println(delta);
+            }
+            System.out.println("  * Done");
+        } else {
+            new File(filename + THEIR_OUTPUT_EXTENSION).delete();
+            new File(filename + OUR_OUTPUT_EXTENSION).delete();
         }
-        System.out.println("  * Done");
     }
 
     private static List<String> fileToLines(String filename) {
