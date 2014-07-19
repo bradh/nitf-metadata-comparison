@@ -306,7 +306,9 @@ public class FileComparison
                                         }
                                     }
                                 }
-                                rpc.put(entry.getName(), builder.toString());
+                                // These are too sensitive to number formatting issues, and we're already checking
+                                // the value in the real TRE.
+                                // rpc.put(entry.getName(), builder.toString());
                             }
                         }
                         try {
@@ -494,6 +496,10 @@ public class FileComparison
                         }
                         if (line.startsWith("Pixel Size = (")) {
                             // System.out.println("Filtering on Pixel Size");
+                            continue;
+                        }
+                        if (line.startsWith("  LINE_DEN_COEFF=") || line.startsWith("  LINE_NUM_COEFF=") || line.startsWith("  SAMP_DEN_COEFF=") || line.startsWith("  SAMP_NUM_COEFF=")) {
+                            // System.out.println("Filtering out RPC coefficients");
                             continue;
                         }
                         if (line.startsWith("Corner Coordinates:")) {
