@@ -28,7 +28,7 @@ import org.codice.nitf.filereader.ImageCompression;
 import org.codice.nitf.filereader.ImageCoordinatePair;
 import org.codice.nitf.filereader.ImageCoordinatesRepresentation;
 import org.codice.nitf.filereader.NitfDataExtensionSegment;
-import org.codice.nitf.filereader.NitfHeaderReader;
+import org.codice.nitf.filereader.NitfFile;
 import org.codice.nitf.filereader.NitfImageSegment;
 import org.codice.nitf.filereader.NitfSecurityClassification;
 import org.codice.nitf.filereader.Tre;
@@ -60,10 +60,10 @@ public class FileComparison
     }
 
     private static void generateOurMetadata(String filename) {
-        NitfHeaderReader header = null;
+        NitfFile header = null;
 
         try {
-            header = new NitfHeaderReader(new FileInputStream(filename));
+            header = new NitfFile(new FileInputStream(filename));
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (FileNotFoundException e) {
