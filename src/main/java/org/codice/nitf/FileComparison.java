@@ -41,13 +41,26 @@ public class FileComparison
     static final String OUR_OUTPUT_EXTENSION = ".OURS.txt";
     static final String THEIR_OUTPUT_EXTENSION = ".THEIRS.txt";
 
-    public static void main( String[] args )
-    {
+    public static void main( String[] args ) {
         if (args.length == 0) {
             System.out.println("No file provided, not comparing");
             return;
         }
-        for (String filename : args) {
+        for (String arg : args) {
+            if (new File(arg).isDirectory()) {
+                System.out.println("Walking contents of " + arg);
+                File[] files = new File(arg).listFiles();
+                for (File file : files) {
+                    handleFile(arg + "/" + file.getName());
+                }
+            } else {
+                handleFile(arg);
+            }
+        }
+    }
+
+    private static void handleFile(String filename) {
+        if (new File(filename).isFile() && (! filename.endsWith(".txt"))) {
             System.out.println("Dumping output of " + filename);
             compareOneFile(filename);
         }
