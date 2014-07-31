@@ -107,7 +107,18 @@ public class FileComparison
             } else {
                 out.write(String.format("Size is %d, %d\n", segment1.getNumberOfColumns(), segment1.getNumberOfRows()));
             }
-            if ((segment1 == null) || (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE)) {
+            boolean haveRPC = false;
+            if (segment1 != null) {
+                TreCollection treCollection = segment1.getTREsRawStructure();
+                for (Tre tre : treCollection.getTREs()) {
+                    if (tre.getName().equals("RPC00B")) {
+                        haveRPC = true;
+                    }
+                }
+            }
+            if (haveRPC) {
+                out.write("Coordinate System is `'\n");
+            } else if ((segment1 == null) || (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE)) {
                 out.write("Coordinate System is `'\n");
             } else {
                 out.write("Coordinate System is:\n");
@@ -316,6 +327,11 @@ public class FileComparison
                     case JPEG2000MASK:
                         out.write("Image Structure Metadata:\n");
                         out.write("  COMPRESSION=JPEG2000\n");
+                        break;
+                    case VECTORQUANTIZATION:
+                    case VECTORQUANTIZATIONMASK:
+                        out.write("Image Structure Metadata:\n");
+                        out.write("  COMPRESSION=VECTOR QUANTIZATION\n");
                         break;
                 }
             }
@@ -535,7 +551,7 @@ public class FileComparison
     }
     private static void generateGdalMetadata(String filename) {
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder("gdalinfo", "-mdd", "xml:TRE", filename);
+            ProcessBuilder processBuilder = new ProcessBuilder("gdalinfo", "-nogcp", "-mdd", "xml:TRE", filename);
             processBuilder.environment().put("NITF_OPEN_UNDERLYING_DS", "NO");
             Process process = processBuilder.start();
             BufferedWriter out = null;
