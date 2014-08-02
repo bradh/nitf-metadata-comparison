@@ -24,6 +24,7 @@ import difflib.Delta;
 import difflib.DiffUtils;
 import difflib.Patch;
 
+import org.codice.nitf.filereader.AbstractNitfSegment;
 import org.codice.nitf.filereader.FileType;
 import org.codice.nitf.filereader.ImageCompression;
 import org.codice.nitf.filereader.ImageCoordinatePair;
@@ -162,8 +163,9 @@ public class FileComparer
 
     private void outputBaseMetadata() throws IOException, ParseException {
         TreeMap <String, String> metadata = new TreeMap<String, String>();
-        metadata.put("NITF_CLEVEL", String.format("%02d", nitf.getComplexityLevel()));
-        metadata.put("NITF_ENCRYP", "0");
+
+        addCommonFileLevelMetadata(metadata);
+
         switch (nitf.getFileType()) {
             case NSIF_ONE_ZERO:
                 metadata.put("NITF_FHDR", "NSIF01.00");
@@ -175,46 +177,12 @@ public class FileComparer
                 metadata.put("NITF_FHDR", "NITF02.10");
                 break;
         }
-        metadata.put("NITF_FSCAUT", nitf.getFileSecurityMetadata().getClassificationAuthority());
-        metadata.put("NITF_FSCLAS", nitf.getFileSecurityMetadata().getSecurityClassification().getTextEquivalent());
-        metadata.put("NITF_FSCODE", nitf.getFileSecurityMetadata().getCodewords());
-        metadata.put("NITF_FSCTLH", nitf.getFileSecurityMetadata().getControlAndHandling());
-        metadata.put("NITF_FSCTLN", nitf.getFileSecurityMetadata().getSecurityControlNumber());
-        metadata.put("NITF_FSREL", nitf.getFileSecurityMetadata().getReleaseInstructions());
         if (nitf.getFileType() == FileType.NITF_TWO_ZERO) {
-            metadata.put("NITF_FDT", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(nitf.getFileDateTime()).toString().toUpperCase());
-            metadata.put("NITF_FSDWNG", nitf.getFileSecurityMetadata().getDowngradeDateOrSpecialCase().trim());
-            if (nitf.getFileSecurityMetadata().getDowngradeEvent() != null) {
-                metadata.put("NITF_FSDEVT", nitf.getFileSecurityMetadata().getDowngradeEvent());
-            }
+            addNITF20FileLevelMetadata(metadata);
         } else {
-            metadata.put("NITF_FBKGC", (String.format("%3d,%3d,%3d",
-                        (int)(nitf.getFileBackgroundColour().getRed() & 0xFF),
-                        (int)(nitf.getFileBackgroundColour().getGreen() & 0xFF),
-                        (int)(nitf.getFileBackgroundColour().getBlue() & 0xFF))));
-            metadata.put("NITF_FDT", new SimpleDateFormat("yyyyMMddHHmmss").format(nitf.getFileDateTime()));
-            metadata.put("NITF_FSCATP", nitf.getFileSecurityMetadata().getClassificationAuthorityType());
-            metadata.put("NITF_FSCLSY", nitf.getFileSecurityMetadata().getSecurityClassificationSystem());
-            metadata.put("NITF_FSCLTX", nitf.getFileSecurityMetadata().getClassificationText());
-            metadata.put("NITF_FSCRSN", nitf.getFileSecurityMetadata().getClassificationReason());
-            metadata.put("NITF_FSDCDT", nitf.getFileSecurityMetadata().getDeclassificationDate());
-            metadata.put("NITF_FSDCTP", nitf.getFileSecurityMetadata().getDeclassificationType());
-            if (nitf.getFileSecurityMetadata().getDeclassificationExemption().length() > 0) {
-                metadata.put("NITF_FSDCXM", String.format("%4s", nitf.getFileSecurityMetadata().getDeclassificationExemption()));
-            } else {
-                metadata.put("NITF_FSDCXM", "");
-            }
-            metadata.put("NITF_FSDG", nitf.getFileSecurityMetadata().getDowngrade());
-            metadata.put("NITF_FSDGDT", nitf.getFileSecurityMetadata().getDowngradeDate());
-            metadata.put("NITF_FSSRDT", nitf.getFileSecurityMetadata().getSecuritySourceDate());
+            addNITF21FileLevelMetadata(metadata);
         }
-        metadata.put("NITF_FSCOP", nitf.getFileSecurityMetadata().getFileCopyNumber());
-        metadata.put("NITF_FSCPYS", nitf.getFileSecurityMetadata().getFileNumberOfCopies());
-        metadata.put("NITF_FTITLE", nitf.getFileTitle());
-        metadata.put("NITF_ONAME", nitf.getOriginatorsName());
-        metadata.put("NITF_OPHONE", nitf.getOriginatorsPhoneNumber());
-        metadata.put("NITF_OSTAID", nitf.getOriginatingStationId());
-        metadata.put("NITF_STYPE", nitf.getStandardType());
+
         TreCollection treCollection = nitf.getTREsRawStructure();
         addOldStyleMetadata(metadata, treCollection);
         if (segment1 != null) {
@@ -226,24 +194,110 @@ public class FileComparer
         }
     }
 
+    private void addCommonFileLevelMetadata(TreeMap <String, String> metadata) throws IOException {
+        metadata.put("NITF_CLEVEL", String.format("%02d", nitf.getComplexityLevel()));
+        metadata.put("NITF_ENCRYP", "0");
+        metadata.put("NITF_FSCAUT", nitf.getFileSecurityMetadata().getClassificationAuthority());
+        metadata.put("NITF_FSCLAS", nitf.getFileSecurityMetadata().getSecurityClassification().getTextEquivalent());
+        metadata.put("NITF_FSCODE", nitf.getFileSecurityMetadata().getCodewords());
+        metadata.put("NITF_FSCTLH", nitf.getFileSecurityMetadata().getControlAndHandling());
+        metadata.put("NITF_FSCTLN", nitf.getFileSecurityMetadata().getSecurityControlNumber());
+        metadata.put("NITF_FSREL", nitf.getFileSecurityMetadata().getReleaseInstructions());
+        metadata.put("NITF_FSCOP", nitf.getFileSecurityMetadata().getFileCopyNumber());
+        metadata.put("NITF_FSCPYS", nitf.getFileSecurityMetadata().getFileNumberOfCopies());
+        metadata.put("NITF_FTITLE", nitf.getFileTitle());
+        metadata.put("NITF_ONAME", nitf.getOriginatorsName());
+        metadata.put("NITF_OPHONE", nitf.getOriginatorsPhoneNumber());
+        metadata.put("NITF_OSTAID", nitf.getOriginatingStationId());
+        metadata.put("NITF_STYPE", nitf.getStandardType());
+    }
+
+    private void addNITF20FileLevelMetadata(TreeMap <String, String> metadata) throws IOException {
+        metadata.put("NITF_FDT", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(nitf.getFileDateTime()).toString().toUpperCase());
+        metadata.put("NITF_FSDWNG", nitf.getFileSecurityMetadata().getDowngradeDateOrSpecialCase().trim());
+        if (nitf.getFileSecurityMetadata().getDowngradeEvent() != null) {
+            metadata.put("NITF_FSDEVT", nitf.getFileSecurityMetadata().getDowngradeEvent());
+        }
+    }
+
+    private void addNITF21FileLevelMetadata(TreeMap <String, String> metadata) throws IOException {
+        metadata.put("NITF_FBKGC", (String.format("%3d,%3d,%3d",
+                    (int)(nitf.getFileBackgroundColour().getRed() & 0xFF),
+                    (int)(nitf.getFileBackgroundColour().getGreen() & 0xFF),
+                    (int)(nitf.getFileBackgroundColour().getBlue() & 0xFF))));
+        metadata.put("NITF_FDT", new SimpleDateFormat("yyyyMMddHHmmss").format(nitf.getFileDateTime()));
+        metadata.put("NITF_FSCATP", nitf.getFileSecurityMetadata().getClassificationAuthorityType());
+        metadata.put("NITF_FSCLSY", nitf.getFileSecurityMetadata().getSecurityClassificationSystem());
+        metadata.put("NITF_FSCLTX", nitf.getFileSecurityMetadata().getClassificationText());
+        metadata.put("NITF_FSCRSN", nitf.getFileSecurityMetadata().getClassificationReason());
+        metadata.put("NITF_FSDCDT", nitf.getFileSecurityMetadata().getDeclassificationDate());
+        metadata.put("NITF_FSDCTP", nitf.getFileSecurityMetadata().getDeclassificationType());
+        if (nitf.getFileSecurityMetadata().getDeclassificationExemption().length() > 0) {
+            metadata.put("NITF_FSDCXM", String.format("%4s", nitf.getFileSecurityMetadata().getDeclassificationExemption()));
+        } else {
+            metadata.put("NITF_FSDCXM", "");
+        }
+        metadata.put("NITF_FSDG", nitf.getFileSecurityMetadata().getDowngrade());
+        metadata.put("NITF_FSDGDT", nitf.getFileSecurityMetadata().getDowngradeDate());
+        metadata.put("NITF_FSSRDT", nitf.getFileSecurityMetadata().getSecuritySourceDate());
+    }
+
     private void addFirstImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException, ParseException {
+
+        addCommonImageSegmentMetadata(metadata);
+
+        if (nitf.getFileType() == FileType.NITF_TWO_ZERO) {
+            addNITF20ImageSegmentMetadata(metadata);
+        } else {
+            addNITF21ImageSegmentMetadata(metadata);
+        }
+        addRpfNamesMetadata(metadata);
+
+        addOldStyleMetadata(metadata, segment1.getTREsRawStructure());
+    }
+
+    private void addNITF20ImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException {
+        metadata.put("NITF_IDATIM", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(segment1.getImageDateTime()).toString().toUpperCase());
+        metadata.put("NITF_ICORDS", segment1.getImageCoordinatesRepresentation().getTextEquivalent(nitf.getFileType()));
+        metadata.put("NITF_ITITLE", segment1.getImageIdentifier2());
+        metadata.put("NITF_ISDWNG", segment1.getSecurityMetadata().getDowngradeDateOrSpecialCase().trim());
+        if (segment1.getSecurityMetadata().getDowngradeEvent() != null) {
+            metadata.put("NITF_ISDEVT", segment1.getSecurityMetadata().getDowngradeEvent());
+        }
+    }
+
+    private void addNITF21ImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException {
+        metadata.put("NITF_IDATIM", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime()));
+        if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE) {
+            metadata.put("NITF_ICORDS", "");
+        } else {
+            metadata.put("NITF_ICORDS", segment1.getImageCoordinatesRepresentation().getTextEquivalent(nitf.getFileType()));
+        }
+        metadata.put("NITF_IID2", segment1.getImageIdentifier2());
+        metadata.put("NITF_ISCATP", segment1.getSecurityMetadata().getClassificationAuthorityType());
+        metadata.put("NITF_ISCLSY", segment1.getSecurityMetadata().getSecurityClassificationSystem());
+        metadata.put("NITF_ISCLTX", segment1.getSecurityMetadata().getClassificationText());
+        metadata.put("NITF_ISDCDT", segment1.getSecurityMetadata().getDeclassificationDate());
+        metadata.put("NITF_ISDCTP", segment1.getSecurityMetadata().getDeclassificationType());
+        metadata.put("NITF_ISCRSN", segment1.getSecurityMetadata().getClassificationReason());
+        if ((segment1.getSecurityMetadata().getDeclassificationExemption() != null)
+            && (segment1.getSecurityMetadata().getDeclassificationExemption().length() > 0)) {
+            metadata.put("NITF_ISDCXM", String.format("%4s", segment1.getSecurityMetadata().getDeclassificationExemption()));
+        } else {
+            metadata.put("NITF_ISDCXM", "");
+        }
+        metadata.put("NITF_ISDG", segment1.getSecurityMetadata().getDowngrade());
+        metadata.put("NITF_ISDGDT", segment1.getSecurityMetadata().getDowngradeDate());
+        metadata.put("NITF_ISSRDT", segment1.getSecurityMetadata().getSecuritySourceDate());
+    }
+
+    private void addCommonImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException {
         metadata.put("NITF_ABPP", String.format("%02d", segment1.getActualBitsPerPixelPerBand()));
         metadata.put("NITF_CCS_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
         metadata.put("NITF_CCS_ROW", String.format("%d", segment1.getImageLocationRow()));
         metadata.put("NITF_IALVL", String.format("%d", segment1.getImageAttachmentLevel()));
         metadata.put("NITF_IC", segment1.getImageCompression().getTextEquivalent());
         metadata.put("NITF_ICAT", segment1.getImageCategory().getTextEquivalent());
-        if (nitf.getFileType() == FileType.NITF_TWO_ZERO) {
-            metadata.put("NITF_IDATIM", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(segment1.getImageDateTime()).toString().toUpperCase());
-            metadata.put("NITF_ICORDS", segment1.getImageCoordinatesRepresentation().getTextEquivalent(nitf.getFileType()));
-        } else {
-            metadata.put("NITF_IDATIM", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime()));
-            if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE) {
-                metadata.put("NITF_ICORDS", "");
-            } else {
-                metadata.put("NITF_ICORDS", segment1.getImageCoordinatesRepresentation().getTextEquivalent(nitf.getFileType()));
-            }
-        }
         metadata.put("NITF_IDLVL", String.format("%d", segment1.getImageDisplayLevel()));
         if (segment1.getImageCoordinatesRepresentation() != ImageCoordinatesRepresentation.NONE) {
             metadata.put("NITF_IGEOLO", String.format("%s%s%s%s",
@@ -253,22 +307,9 @@ public class FileComparer
                                                     segment1.getImageCoordinates().getCoordinateMaxRow0().getSourceFormat()));
         }
         metadata.put("NITF_IID1", segment1.getImageIdentifier1());
-        if (nitf.getFileType() == FileType.NITF_TWO_ZERO) {
-            metadata.put("NITF_ITITLE", segment1.getImageIdentifier2());
-        } else {
-            metadata.put("NITF_IID2", segment1.getImageIdentifier2());
-        }
-        addRpfNamesMetadata(metadata);
         metadata.put("NITF_ILOC_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
         metadata.put("NITF_ILOC_ROW", String.format("%d", segment1.getImageLocationRow()));
         metadata.put("NITF_IMAG", segment1.getImageMagnification());
-        if (segment1.getNumberOfImageComments() > 0) {
-            StringBuilder commentBuilder = new StringBuilder();
-            for (int i = 0; i < segment1.getNumberOfImageComments(); ++i) {
-                commentBuilder.append(String.format("%-80s", segment1.getImageCommentZeroBase(i)));
-            }
-            metadata.put("NITF_IMAGE_COMMENTS", commentBuilder.toString());
-        }
         metadata.put("NITF_IMODE", segment1.getImageMode().getTextEquivalent());
         metadata.put("NITF_IREP", segment1.getImageRepresentation().getTextEquivalent());
         metadata.put("NITF_ISCAUT", segment1.getSecurityMetadata().getClassificationAuthority());
@@ -276,27 +317,12 @@ public class FileComparer
         metadata.put("NITF_ISCODE", segment1.getSecurityMetadata().getCodewords());
         metadata.put("NITF_ISCTLH", segment1.getSecurityMetadata().getControlAndHandling());
         metadata.put("NITF_ISCTLN", segment1.getSecurityMetadata().getSecurityControlNumber());
-        if (nitf.getFileType() == FileType.NITF_TWO_ZERO) {
-            metadata.put("NITF_ISDWNG", segment1.getSecurityMetadata().getDowngradeDateOrSpecialCase().trim());
-            if (segment1.getSecurityMetadata().getDowngradeEvent() != null) {
-                metadata.put("NITF_ISDEVT", segment1.getSecurityMetadata().getDowngradeEvent());
+        if (segment1.getNumberOfImageComments() > 0) {
+            StringBuilder commentBuilder = new StringBuilder();
+            for (int i = 0; i < segment1.getNumberOfImageComments(); ++i) {
+                commentBuilder.append(String.format("%-80s", segment1.getImageCommentZeroBase(i)));
             }
-        } else {
-            metadata.put("NITF_ISCATP", segment1.getSecurityMetadata().getClassificationAuthorityType());
-            metadata.put("NITF_ISCLSY", segment1.getSecurityMetadata().getSecurityClassificationSystem());
-            metadata.put("NITF_ISCLTX", segment1.getSecurityMetadata().getClassificationText());
-            metadata.put("NITF_ISDCDT", segment1.getSecurityMetadata().getDeclassificationDate());
-            metadata.put("NITF_ISDCTP", segment1.getSecurityMetadata().getDeclassificationType());
-            metadata.put("NITF_ISCRSN", segment1.getSecurityMetadata().getClassificationReason());
-            if ((segment1.getSecurityMetadata().getDeclassificationExemption() != null)
-                && (segment1.getSecurityMetadata().getDeclassificationExemption().length() > 0)) {
-                metadata.put("NITF_ISDCXM", String.format("%4s", segment1.getSecurityMetadata().getDeclassificationExemption()));
-            } else {
-                metadata.put("NITF_ISDCXM", "");
-            }
-            metadata.put("NITF_ISDG", segment1.getSecurityMetadata().getDowngrade());
-            metadata.put("NITF_ISDGDT", segment1.getSecurityMetadata().getDowngradeDate());
-            metadata.put("NITF_ISSRDT", segment1.getSecurityMetadata().getSecuritySourceDate());
+            metadata.put("NITF_IMAGE_COMMENTS", commentBuilder.toString());
         }
         metadata.put("NITF_ISORCE", segment1.getImageSource());
         metadata.put("NITF_ISREL", segment1.getSecurityMetadata().getReleaseInstructions());
@@ -307,7 +333,6 @@ public class FileComparer
         } else {
             metadata.put("NITF_TGTID", "");
         }
-        addOldStyleMetadata(metadata, segment1.getTREsRawStructure());
     }
 
     private void addRpfNamesMetadata(TreeMap <String, String> metadata) throws IOException, ParseException {
@@ -366,27 +391,34 @@ public class FileComparer
     }
 
     private void outputTRExml() throws IOException {
-        if ((nitf.getTREsRawStructure().hasTREs()) || ((segment1 != null) && (segment1.getTREsRawStructure().hasTREs())) 
-            || ((des1 != null) && (des1.getTREsRawStructure().hasTREs())))  {
+        if (shouldOutputTREs()) {
             out.write("Metadata (xml:TRE):\n");
             out.write("<tres>\n");
-            TreCollection treCollection = nitf.getTREsRawStructure();
-            for (Tre tre : treCollection.getTREs()) {
-                outputThisTre(out, tre, "file");
-            }
+            outputTresForSegment(nitf, "file");
             if (segment1 != null) {
-                treCollection = segment1.getTREsRawStructure();
-                for (Tre tre : treCollection.getTREs()) {
-                    outputThisTre(out, tre, "image");
-                }
+                outputTresForSegment(segment1, "image");
             }
             if (des1 != null) {
-                treCollection = des1.getTREsRawStructure();
-                for (Tre tre : treCollection.getTREs()) {
-                    outputThisTre(out, tre, "des TRE_OVERFLOW");
-                }
+                outputTresForSegment(des1, "des TRE_OVERFLOW");
             }
             out.write("</tres>\n\n");
+        }
+    }
+
+    private boolean shouldOutputTREs() {
+        if ((nitf.getTREsRawStructure().hasTREs())
+            || ((segment1 != null) && (segment1.getTREsRawStructure().hasTREs())) 
+            || ((des1 != null) && (des1.getTREsRawStructure().hasTREs())))  {
+                return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void outputTresForSegment(AbstractNitfSegment segment, String label) throws IOException {
+        TreCollection treCollection = segment.getTREsRawStructure();
+        for (Tre tre : treCollection.getTREs()) {
+            outputThisTre(out, tre, label);
         }
     }
 
@@ -469,7 +501,7 @@ public class FileComparer
         return naiveString;
     }
 
-    private static void addOldStyleMetadata(TreeMap <String, String> metadata, TreCollection treCollection) {
+    private void addOldStyleMetadata(TreeMap <String, String> metadata, TreCollection treCollection) {
         for (Tre tre : treCollection.getTREs()) {
             if (tre.getPrefix() != null) {
                 // if it has a prefix, its probably an old-style NITF metadata field
@@ -478,21 +510,24 @@ public class FileComparer
                     metadata.put(tre.getPrefix() + entry.getName(), rightTrim(entry.getFieldValue()));
                 }
             } else if ("ICHIPB".equals(tre.getName())) {
-                // special case
-                List<TreEntry> entries = tre.getEntries();
-                for (TreEntry entry: entries) {
-                    if ("XFRM_FLAG".equals(entry.getName())) {
-                        // GDAL skips this one
-                        continue;
-                    }
-                    BigDecimal value = new BigDecimal(entry.getFieldValue().trim()).stripTrailingZeros();
-                    if ("ANAMRPH_CORR".equals(entry.getName())) {
-                        // Special case for GDAL
-                        metadata.put("ICHIP_ANAMORPH_CORR", value.toPlainString());
-                    } else {
-                        metadata.put("ICHIP_" + entry.getName(), value.toPlainString());
-                    }
-                }
+                outputICHIPmetadata(metadata, tre);
+            }
+        }
+    }
+
+    private void outputICHIPmetadata(TreeMap <String, String> metadata, Tre tre) {
+        List<TreEntry> entries = tre.getEntries();
+        for (TreEntry entry: entries) {
+            if ("XFRM_FLAG".equals(entry.getName())) {
+                // GDAL skips this one
+                continue;
+            }
+            BigDecimal value = new BigDecimal(entry.getFieldValue().trim()).stripTrailingZeros();
+            if ("ANAMRPH_CORR".equals(entry.getName())) {
+                // Special case for GDAL
+                metadata.put("ICHIP_ANAMORPH_CORR", value.toPlainString());
+            } else {
+                metadata.put("ICHIP_" + entry.getName(), value.toPlainString());
             }
         }
     }
