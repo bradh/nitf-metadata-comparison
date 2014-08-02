@@ -257,7 +257,11 @@ public class FileComparer
     }
 
     private void addNITF20ImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException {
-        metadata.put("NITF_IDATIM", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(segment1.getImageDateTime()).toString().toUpperCase());
+        if (segment1.getImageDateTime() != null) {
+            metadata.put("NITF_IDATIM", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(segment1.getImageDateTime()).toString().toUpperCase());
+        } else {
+            metadata.put("NITF_IDATIM", " ");
+        }
         metadata.put("NITF_ICORDS", segment1.getImageCoordinatesRepresentation().getTextEquivalent(nitf.getFileType()));
         metadata.put("NITF_ITITLE", segment1.getImageIdentifier2());
         metadata.put("NITF_ISDWNG", segment1.getSecurityMetadata().getDowngradeDateOrSpecialCase().trim());
@@ -267,7 +271,11 @@ public class FileComparer
     }
 
     private void addNITF21ImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException {
-        metadata.put("NITF_IDATIM", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime()));
+        if (segment1.getImageDateTime() != null) {
+            metadata.put("NITF_IDATIM", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime()));
+        } else {
+            metadata.put("NITF_IDATIM", " ");
+        }
         if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE) {
             metadata.put("NITF_ICORDS", "");
         } else {
@@ -344,7 +352,11 @@ public class FileComparer
         }
         String rpfName = rpfUtils.getNameForFileName(segment1.getImageIdentifier2());
         if (rpfName != null) {
-            metadata.put("NITF_SERIES_NAME", rpfName);
+            if ("Joint Operations Graphic - Air".equals(rpfName)) {
+                metadata.put("NITF_SERIES_NAME", "Joint Operation Graphic - Air");
+            } else {
+                metadata.put("NITF_SERIES_NAME", rpfName);
+            }
         }
     }
 
@@ -406,13 +418,23 @@ public class FileComparer
     }
 
     private boolean shouldOutputTREs() {
-        if ((nitf.getTREsRawStructure().hasTREs())
-            || ((segment1 != null) && (segment1.getTREsRawStructure().hasTREs())) 
-            || ((des1 != null) && (des1.getTREsRawStructure().hasTREs())))  {
-                return true;
+        if (shouldOutputFileTREs() || shouldOutputImageTREs() || shouldOutputDESTREs()) {
+            return true;
         } else {
             return false;
         }
+    }
+
+    private boolean shouldOutputFileTREs() {
+        return hasTREsOtherThanRPF(nitf.getTREsRawStructure());
+    }
+
+    private boolean shouldOutputImageTREs() {
+        return (segment1 != null) && (hasTREsOtherThanRPF(segment1.getTREsRawStructure()));
+    }
+
+    private boolean shouldOutputDESTREs() {
+        return (des1 != null) && (hasTREsOtherThanRPF(des1.getTREsRawStructure()));
     }
 
     private void outputTresForSegment(AbstractNitfSegment segment, String label) throws IOException {
@@ -420,6 +442,17 @@ public class FileComparer
         for (Tre tre : treCollection.getTREs()) {
             outputThisTre(out, tre, label);
         }
+    }
+
+    private boolean hasTREsOtherThanRPF(TreCollection treCollection) {
+        int treCountNonRPF = 0;
+        for (Tre tre : treCollection.getTREs()) {
+            if ((tre.getName().equals("RPFHDR")) || (tre.getName().equals("RPFIMG")) || (tre.getName().equals("RPFDES"))) {
+                continue;
+            }
+            treCountNonRPF++;
+        }
+        return (treCountNonRPF != 0);
     }
 
     private void outputRPCs() throws IOException {
