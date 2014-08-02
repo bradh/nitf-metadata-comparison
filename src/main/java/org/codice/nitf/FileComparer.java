@@ -218,7 +218,7 @@ public class FileComparer
         TreCollection treCollection = nitf.getTREsRawStructure();
         addOldStyleMetadata(metadata, treCollection);
         if (segment1 != null) {
-            addFirstSegmentMetadata(metadata);
+            addFirstImageSegmentMetadata(metadata);
         }
         out.write("Metadata:\n");
         for (String key : metadata.keySet()) {
@@ -226,9 +226,7 @@ public class FileComparer
         }
     }
 
-    private void addFirstSegmentMetadata(TreeMap <String, String> metadata) throws IOException, ParseException {
-        RasterProductFormatUtilities rpfUtils = new RasterProductFormatUtilities();
-
+    private void addFirstImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException, ParseException {
         metadata.put("NITF_ABPP", String.format("%02d", segment1.getActualBitsPerPixelPerBand()));
         metadata.put("NITF_CCS_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
         metadata.put("NITF_CCS_ROW", String.format("%d", segment1.getImageLocationRow()));
@@ -260,14 +258,7 @@ public class FileComparer
         } else {
             metadata.put("NITF_IID2", segment1.getImageIdentifier2());
         }
-        String rpfAbbreviation = rpfUtils.getAbbreviationForFileName(segment1.getImageIdentifier2());
-        if (rpfAbbreviation != null) {
-            metadata.put("NITF_SERIES_ABBREVIATION", rpfAbbreviation);
-        }
-        String rpfName = rpfUtils.getNameForFileName(segment1.getImageIdentifier2());
-        if (rpfName != null) {
-            metadata.put("NITF_SERIES_NAME", rpfName);
-        }
+        addRpfNamesMetadata(metadata);
         metadata.put("NITF_ILOC_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
         metadata.put("NITF_ILOC_ROW", String.format("%d", segment1.getImageLocationRow()));
         metadata.put("NITF_IMAG", segment1.getImageMagnification());
@@ -317,6 +308,19 @@ public class FileComparer
             metadata.put("NITF_TGTID", "");
         }
         addOldStyleMetadata(metadata, segment1.getTREsRawStructure());
+    }
+
+    private void addRpfNamesMetadata(TreeMap <String, String> metadata) throws IOException, ParseException {
+        RasterProductFormatUtilities rpfUtils = new RasterProductFormatUtilities();
+
+        String rpfAbbreviation = rpfUtils.getAbbreviationForFileName(segment1.getImageIdentifier2());
+        if (rpfAbbreviation != null) {
+            metadata.put("NITF_SERIES_ABBREVIATION", rpfAbbreviation);
+        }
+        String rpfName = rpfUtils.getNameForFileName(segment1.getImageIdentifier2());
+        if (rpfName != null) {
+            metadata.put("NITF_SERIES_NAME", rpfName);
+        }
     }
 
     private void outputImageStructure() throws IOException {
