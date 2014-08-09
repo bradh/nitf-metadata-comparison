@@ -303,7 +303,7 @@ public class FileComparer
         metadata.put("NITF_ABPP", String.format("%02d", segment1.getActualBitsPerPixelPerBand()));
         metadata.put("NITF_CCS_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
         metadata.put("NITF_CCS_ROW", String.format("%d", segment1.getImageLocationRow()));
-        metadata.put("NITF_IALVL", String.format("%d", segment1.getImageAttachmentLevel()));
+        metadata.put("NITF_IALVL", String.format("%d", segment1.getAttachmentLevel()));
         metadata.put("NITF_IC", segment1.getImageCompression().getTextEquivalent());
         metadata.put("NITF_ICAT", segment1.getImageCategory().getTextEquivalent());
         metadata.put("NITF_IDLVL", String.format("%d", segment1.getImageDisplayLevel()));
@@ -314,7 +314,7 @@ public class FileComparer
                                                     segment1.getImageCoordinates().getCoordinateMaxRowMaxCol().getSourceFormat(),
                                                     segment1.getImageCoordinates().getCoordinateMaxRow0().getSourceFormat()));
         }
-        metadata.put("NITF_IID1", segment1.getImageIdentifier1());
+        metadata.put("NITF_IID1", segment1.getIdentifier());
         metadata.put("NITF_ILOC_COLUMN", String.format("%d", segment1.getImageLocationColumn()));
         metadata.put("NITF_ILOC_ROW", String.format("%d", segment1.getImageLocationRow()));
         metadata.put("NITF_IMAG", segment1.getImageMagnification());
