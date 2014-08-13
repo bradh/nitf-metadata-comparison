@@ -61,7 +61,7 @@ public class FileComparer
 
     private void generateOurMetadata() {
         try {
-            nitf = NitfFileFactory.parse(new FileInputStream(filename));
+            nitf = NitfFileFactory.parseHeadersOnly(new FileInputStream(filename));
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (FileNotFoundException e) {
