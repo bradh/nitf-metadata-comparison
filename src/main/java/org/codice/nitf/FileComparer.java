@@ -31,6 +31,7 @@ import org.codice.nitf.filereader.ImageCoordinatePair;
 import org.codice.nitf.filereader.ImageCoordinatesRepresentation;
 import org.codice.nitf.filereader.NitfDataExtensionSegment;
 import org.codice.nitf.filereader.NitfFile;
+import org.codice.nitf.filereader.NitfFileFactory;
 import org.codice.nitf.filereader.NitfImageSegment;
 import org.codice.nitf.filereader.NitfSecurityClassification;
 import org.codice.nitf.filereader.RasterProductFormatUtilities;
@@ -60,8 +61,7 @@ public class FileComparer
 
     private void generateOurMetadata() {
         try {
-            nitf = new NitfFile();
-            nitf.parse(new FileInputStream(filename));
+            nitf = NitfFileFactory.parse(new FileInputStream(filename));
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (FileNotFoundException e) {
