@@ -24,21 +24,21 @@ import difflib.Delta;
 import difflib.DiffUtils;
 import difflib.Patch;
 
-import org.codice.nitf.filereader.AbstractNitfSegment;
-import org.codice.nitf.filereader.FileType;
-import org.codice.nitf.filereader.ImageCompression;
-import org.codice.nitf.filereader.ImageCoordinatePair;
-import org.codice.nitf.filereader.ImageCoordinatesRepresentation;
-import org.codice.nitf.filereader.NitfDataExtensionSegment;
-import org.codice.nitf.filereader.NitfFile;
-import org.codice.nitf.filereader.NitfFileFactory;
-import org.codice.nitf.filereader.NitfImageSegment;
-import org.codice.nitf.filereader.NitfSecurityClassification;
-import org.codice.nitf.filereader.RasterProductFormatUtilities;
-import org.codice.nitf.filereader.Tre;
-import org.codice.nitf.filereader.TreCollection;
-import org.codice.nitf.filereader.TreEntry;
-import org.codice.nitf.filereader.TreGroup;
+import org.codice.imaging.nitf.core.AbstractNitfSegment;
+import org.codice.imaging.nitf.core.FileType;
+import org.codice.imaging.nitf.core.ImageCompression;
+import org.codice.imaging.nitf.core.ImageCoordinatePair;
+import org.codice.imaging.nitf.core.ImageCoordinatesRepresentation;
+import org.codice.imaging.nitf.core.NitfDataExtensionSegment;
+import org.codice.imaging.nitf.core.NitfFile;
+import org.codice.imaging.nitf.core.NitfFileFactory;
+import org.codice.imaging.nitf.core.NitfImageSegment;
+import org.codice.imaging.nitf.core.NitfSecurityClassification;
+import org.codice.imaging.nitf.core.RasterProductFormatUtilities;
+import org.codice.imaging.nitf.core.Tre;
+import org.codice.imaging.nitf.core.TreCollection;
+import org.codice.imaging.nitf.core.TreEntry;
+import org.codice.imaging.nitf.core.TreGroup;
 
 public class FileComparer
 {
@@ -197,6 +197,7 @@ public class FileComparer
     private void addCommonFileLevelMetadata(TreeMap <String, String> metadata) throws IOException {
         metadata.put("NITF_CLEVEL", String.format("%02d", nitf.getComplexityLevel()));
         metadata.put("NITF_ENCRYP", "0");
+        metadata.put("NITF_FDT", nitf.getFileDateTime().getSourceString());
         metadata.put("NITF_FSCAUT", nitf.getFileSecurityMetadata().getClassificationAuthority());
         metadata.put("NITF_FSCLAS", nitf.getFileSecurityMetadata().getSecurityClassification().getTextEquivalent());
         metadata.put("NITF_FSCODE", nitf.getFileSecurityMetadata().getCodewords());
@@ -213,7 +214,6 @@ public class FileComparer
     }
 
     private void addNITF20FileLevelMetadata(TreeMap <String, String> metadata) throws IOException {
-        metadata.put("NITF_FDT", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(nitf.getFileDateTime()).toString().toUpperCase());
         metadata.put("NITF_FSDWNG", nitf.getFileSecurityMetadata().getDowngradeDateOrSpecialCase().trim());
         if (nitf.getFileSecurityMetadata().getDowngradeEvent() != null) {
             metadata.put("NITF_FSDEVT", nitf.getFileSecurityMetadata().getDowngradeEvent());
@@ -225,7 +225,6 @@ public class FileComparer
                     (int)(nitf.getFileBackgroundColour().getRed() & 0xFF),
                     (int)(nitf.getFileBackgroundColour().getGreen() & 0xFF),
                     (int)(nitf.getFileBackgroundColour().getBlue() & 0xFF))));
-        metadata.put("NITF_FDT", new SimpleDateFormat("yyyyMMddHHmmss").format(nitf.getFileDateTime()));
         metadata.put("NITF_FSCATP", nitf.getFileSecurityMetadata().getClassificationAuthorityType());
         metadata.put("NITF_FSCLSY", nitf.getFileSecurityMetadata().getSecurityClassificationSystem());
         metadata.put("NITF_FSCLTX", nitf.getFileSecurityMetadata().getClassificationText());
@@ -257,11 +256,6 @@ public class FileComparer
     }
 
     private void addNITF20ImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException {
-        if (segment1.getImageDateTime() != null) {
-            metadata.put("NITF_IDATIM", new SimpleDateFormat("ddHHmmss'Z'MMMyy").format(segment1.getImageDateTime()).toString().toUpperCase());
-        } else {
-            metadata.put("NITF_IDATIM", " ");
-        }
         metadata.put("NITF_ICORDS", segment1.getImageCoordinatesRepresentation().getTextEquivalent(nitf.getFileType()));
         metadata.put("NITF_ITITLE", segment1.getImageIdentifier2());
         metadata.put("NITF_ISDWNG", segment1.getSecurityMetadata().getDowngradeDateOrSpecialCase().trim());
@@ -271,11 +265,6 @@ public class FileComparer
     }
 
     private void addNITF21ImageSegmentMetadata(TreeMap <String, String> metadata) throws IOException {
-        if (segment1.getImageDateTime() != null) {
-            metadata.put("NITF_IDATIM", new SimpleDateFormat("yyyyMMddHHmmss").format(segment1.getImageDateTime()));
-        } else {
-            metadata.put("NITF_IDATIM", " ");
-        }
         if (segment1.getImageCoordinatesRepresentation() == ImageCoordinatesRepresentation.NONE) {
             metadata.put("NITF_ICORDS", "");
         } else {
@@ -306,6 +295,12 @@ public class FileComparer
         metadata.put("NITF_IALVL", String.format("%d", segment1.getAttachmentLevel()));
         metadata.put("NITF_IC", segment1.getImageCompression().getTextEquivalent());
         metadata.put("NITF_ICAT", segment1.getImageCategory().getTextEquivalent());
+        String idatim = rightTrimToLetterOrDigit(segment1.getImageDateTime().getSourceString());
+        if (idatim.length() > 0) {
+            metadata.put("NITF_IDATIM", idatim);
+        } else {
+            metadata.put("NITF_IDATIM", " ");
+        }
         metadata.put("NITF_IDLVL", String.format("%d", segment1.getImageDisplayLevel()));
         if (segment1.getImageCoordinatesRepresentation() != ImageCoordinatesRepresentation.NONE) {
             metadata.put("NITF_IGEOLO", String.format("%s%s%s%s",
@@ -336,14 +331,18 @@ public class FileComparer
         metadata.put("NITF_ISREL", segment1.getSecurityMetadata().getReleaseInstructions());
         metadata.put("NITF_PJUST", segment1.getPixelJustification().getTextEquivalent());
         metadata.put("NITF_PVTYPE", segment1.getPixelValueType().getTextEquivalent());
-        if (segment1.getImageTargetId().length() > 0) {
-            metadata.put("NITF_TGTID", segment1.getImageTargetId());
+        if (segment1.getImageTargetId().toString().length() > 0) {
+            metadata.put("NITF_TGTID", rightTrim(segment1.getImageTargetId().toString()));
         } else {
             metadata.put("NITF_TGTID", "");
         }
     }
 
     private void addRpfNamesMetadata(TreeMap <String, String> metadata) throws IOException, ParseException {
+        if (filename.toLowerCase().endsWith(".ntf")) {
+            // GDAL does this off the filename, not off the IID2, so it won't show these for "plain" NITF files
+            return;
+        }
         RasterProductFormatUtilities rpfUtils = new RasterProductFormatUtilities();
 
         String rpfAbbreviation = rpfUtils.getAbbreviationForFileName(segment1.getImageIdentifier2());
@@ -440,7 +439,10 @@ public class FileComparer
     private void outputTresForSegment(AbstractNitfSegment segment, String label) throws IOException {
         TreCollection treCollection = segment.getTREsRawStructure();
         for (Tre tre : treCollection.getTREs()) {
-            outputThisTre(out, tre, label);
+            if (tre.getRawData() == null) {
+                // We parsed this TRE
+                outputThisTre(out, tre, label);
+            }
         }
     }
 
@@ -448,6 +450,10 @@ public class FileComparer
         int treCountNonRPF = 0;
         for (Tre tre : treCollection.getTREs()) {
             if ((tre.getName().equals("RPFHDR")) || (tre.getName().equals("RPFIMG")) || (tre.getName().equals("RPFDES"))) {
+                continue;
+            }
+            if (tre.getRawData() != null) {
+                //  We have raw data for this TRE, so this is not a TRE we recognised
                 continue;
             }
             treCountNonRPF++;
@@ -602,6 +608,14 @@ public class FileComparer
     private static String rightTrim(final String s) {
         int i = s.length() - 1;
         while ((i >= 0) && Character.isWhitespace(s.charAt(i))) {
+            i--;
+        }
+        return s.substring(0, i + 1);
+    }
+
+    private static String rightTrimToLetterOrDigit(final String s) {
+        int i = s.length() - 1;
+        while ((i >= 0) && !Character.isLetterOrDigit(s.charAt(i))) {
             i--;
         }
         return s.substring(0, i + 1);
